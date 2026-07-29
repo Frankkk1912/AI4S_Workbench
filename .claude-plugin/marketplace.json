@@ -1,0 +1,14 @@
+{
+  "name": "ai4s-workbench",
+  "owner": {
+    "name": "Frankkk1912",
+    "url": "https://github.com/Frankkk1912"
+  },
+  "plugins": [
+    {
+      "name": "molecular-modeling-workbench",
+      "source": "./plugins/molecular-modeling-workbench",
+      "description": "Auditable molecular docking, visualization, and molecular dynamics workflows."
+    }
+  ]
+}

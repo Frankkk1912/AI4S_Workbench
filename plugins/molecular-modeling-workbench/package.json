@@ -1,0 +1,10 @@
+{
+  "name": "ai4s-molecular-modeling-workbench",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/assemble-plugin.mjs sync",
+    "check": "node scripts/assemble-plugin.mjs check && node scripts/verify-plugin.mjs",
+    "test": "node scripts/run-tests.mjs"
+  }
+}

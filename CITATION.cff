@@ -1,0 +1,9 @@
+cff-version: 1.2.0
+message: "If you use Molecular Modeling Workbench, please cite its release and the underlying scientific software."
+title: "Molecular Modeling Workbench"
+version: "0.1.0"
+date-released: 2026-07-27
+authors:
+  - family-names: "Frankkk1912"
+repository-code: "https://github.com/Frankkk1912/AI4S_Workbench"
+license: MIT

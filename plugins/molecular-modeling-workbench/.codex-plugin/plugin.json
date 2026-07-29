@@ -1,0 +1,36 @@
+{
+  "name": "molecular-modeling-workbench",
+  "version": "0.1.0",
+  "description": "Auditable molecular docking, visualization, and molecular dynamics workflows.",
+  "author": {
+    "name": "Frankkk1912",
+    "url": "https://github.com/Frankkk1912"
+  },
+  "homepage": "https://github.com/Frankkk1912/AI4S_Workbench",
+  "repository": "https://github.com/Frankkk1912/AI4S_Workbench",
+  "license": "MIT",
+  "keywords": [
+    "molecular-docking",
+    "gnina",
+    "vina",
+    "gromacs",
+    "molecular-dynamics"
+  ],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Molecular Modeling Workbench",
+    "shortDescription": "Auditable docking-to-MD workflows.",
+    "longDescription": "Reproducible, file-based GNINA/Vina docking, complex analysis, ChimeraX/PyMOL visualization, validated docking-to-MD handoffs, and GROMACS workflow orchestration.",
+    "developerName": "Frankkk1912",
+    "category": "Productivity",
+    "capabilities": [
+      "Skills"
+    ],
+    "defaultPrompt": [
+      "Audit my WSL2 GPU molecular-modeling environment.",
+      "Run a reproducible GNINA docking workflow with Vina fallback.",
+      "Validate a selected docking pose before starting ligand MD."
+    ],
+    "brandColor": "#0F766E"
+  }
+}

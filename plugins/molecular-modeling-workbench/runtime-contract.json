@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "artifact_type": "molecular_modeling_runtime_contract",
+  "python": {
+    "lockfile": "uv.lock",
+    "project": "pyproject.toml",
+    "policy": "All workbench Python execution uses uv with the committed lockfile."
+  },
+  "external_tools": {
+    "gnina": {"source": "manual user-space binary", "required_evidence": ["absolute_path", "version"]},
+    "vina": {"source": "manual binary or per-component prefix", "required_evidence": ["absolute_path", "version"]},
+    "gmx": {"source": "per-component micromamba prefix or an explicitly selected system/container installation", "required_evidence": ["absolute_path", "version"]},
+    "acpype": {"source": "user-managed Python environment", "required_evidence": ["absolute_path", "version"]},
+    "obabel": {"source": "per-component micromamba prefix or system installation", "required_evidence": ["absolute_path", "version"]},
+    "chimerax": {"source": "manual official installation", "required_evidence": ["absolute_path", "version"]},
+    "pymol": {"source": "per-component micromamba prefix or manual installation", "required_evidence": ["absolute_path", "version"]}
+  },
+  "container_images": {
+    "gromacs_gpu": {
+      "reference": "nvcr.io/nvidia/gromacs:v2023.3",
+      "release_policy": "Acceptance receipts must record the resolved immutable image digest; a mutable tag alone is not release-grade evidence."
+    }
+  },
+  "boundaries": [
+    "The workbench never downloads proprietary or license-restricted scientific tools automatically.",
+    "A missing tool is a failed capability check, not permission to silently change scientific parameters or backend."
+  ]
+}
