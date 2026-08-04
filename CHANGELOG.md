@@ -2,7 +2,7 @@
 
 All notable changes are documented here.
 
-## 0.2.0 — unreleased
+## 0.2.0 — 2026-08-04
 
 - Adds a non-destructive Windows 11 preflight and a fail-closed Ubuntu 22.04
   WSL2 initializer for newcomers.
