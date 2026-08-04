@@ -1,0 +1,97 @@
+{
+  "schema_version": "1.0",
+  "artifact_type": "sanitized_v0_2_technical_acceptance_receipt",
+  "accepted_at": "2026-08-03",
+  "scope": "Windows newcomer onboarding and WSL-native public 181L–BNZ workflow smoke only.",
+  "privacy": {
+    "raw_artifacts_committed": false,
+    "absolute_local_paths_committed": false,
+    "credentials_committed": false
+  },
+  "host": {
+    "windows": "Windows 11 Pro build 26200",
+    "wsl_distribution": "Ubuntu 22.04 on WSL2",
+    "gpu": "NVIDIA GeForce RTX 3080",
+    "driver_version": "591.67",
+    "docker_desktop_detected": true
+  },
+  "agent_discovery": [
+    {
+      "client": "Codex CLI",
+      "version": "0.145.0",
+      "wsl_native_workbench_skill_discovery": "passed"
+    },
+    {
+      "client": "Claude Code",
+      "version": "2.1.218",
+      "wsl_native_workbench_skill_discovery": "passed"
+    }
+  ],
+  "environment": {
+    "profile": "wsl2-gpu",
+    "ready": true,
+    "gromacs_container_digest": "nvcr.io/nvidia/gromacs@sha256:6fbcd08e5ddd5aa12c2a296262e4322b353ce1f7d679a166d5264147cebd8424",
+    "docking_tools": {
+      "gnina": "1.3.2",
+      "vina_available": true
+    },
+    "md_tools": {
+      "gromacs_container": "2023.3",
+      "gmx_MMPBSA": "1.6.5",
+      "mkdssp": "4.6.1"
+    }
+  },
+  "public_fixture": {
+    "receptor": "RCSB PDB 181L, chain A",
+    "ligand": "RCSB Ligand Expo BNZ (benzene)",
+    "purpose": "Technical workflow connectivity; not a biological or affinity claim."
+  },
+  "ligand_parameterization": {
+    "route": "GAFF2 with ACPYPE AM1-BCC",
+    "net_charge": 0,
+    "atom_charge_review": "six carbons -0.130 and six hydrogens +0.130; rounded total 0.00000000",
+    "result": "passed"
+  },
+  "docking": {
+    "receipt_gated": true,
+    "backend": "GNINA",
+    "vina_fallback_used": false,
+    "center_angstrom": [26.911, 6.126, 4.179],
+    "box_angstrom": [16, 16, 16],
+    "seed": 7,
+    "selected_pose": "pose_001",
+    "named_atom_alignment_admission": "C1–C6; passed",
+    "result": "passed"
+  },
+  "md_smoke": {
+    "force_fields": {
+      "protein": "AMBER99SB-ILDN",
+      "ligand": "GAFF2"
+    },
+    "solvent_and_ions": "TIP3P, 1.2 nm dodecahedron, neutralized plus 0.15 M NaCl",
+    "system_atom_count": 38713,
+    "stages": {
+      "em": "completed",
+      "nvt": "100 ps completed",
+      "npt": "100 ps completed",
+      "production": "100 ps completed"
+    },
+    "production": {
+      "temperature_K": 300,
+      "pressure_bar": 1,
+      "timestep_fs": 2,
+      "coordinate_frames": 101,
+      "gpu_execution": "receipt-bound digest-pinned Docker with GPU nonbonded work"
+    },
+    "basic_qc": {
+      "result": "passed",
+      "critical_log_matches": [],
+      "scope": "Execution/artifact/log checks only; not stability, convergence, or free-energy validation."
+    }
+  },
+  "residual_risks": [
+    "Open Babel reported an aromatic kekulization warning during receptor PDBQT preparation.",
+    "This public 181L–BNZ run is an M4 connectivity smoke and must not be interpreted as a validated docking protocol, binding affinity, free energy, or biological stability result."
+  ],
+  "source_revision_before_evidence_commit": "771f329"
+}

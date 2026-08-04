@@ -7,6 +7,7 @@ import datetime as dt
 import hashlib
 import json
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -111,6 +112,76 @@ def ligand_parameterization(path: Path) -> dict[str, Any]:
     return data
 
 
+def pdbqt_atom_names(path: Path) -> list[str]:
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError as exc:
+        raise HandoffError(f"Cannot read selected pose PDBQT {path}: {exc}") from exc
+    names: list[str] = []
+    for line_number, line in enumerate(lines, start=1):
+        if not line.startswith(("ATOM", "HETATM")):
+            continue
+        if len(line) >= 16:
+            name = line[12:16].strip()
+        else:
+            fields = line.split()
+            name = fields[2] if len(fields) >= 3 else ""
+        if not name:
+            raise HandoffError(f"Selected pose PDBQT has a missing atom name at line {line_number}")
+        names.append(name)
+    if not names:
+        raise HandoffError("Selected pose PDBQT contains no ATOM/HETATM records")
+    duplicates = {name: count for name, count in Counter(names).items() if count > 1}
+    if duplicates:
+        details = ", ".join(f"{name} ({count} occurrences)" for name, count in sorted(duplicates.items()))
+        raise HandoffError(
+            f"Selected pose PDBQT contains duplicate docking atom names: {details}. "
+            "Regenerate the ligand PDBQT with unique, stable atom names before docking and rerun docking; "
+            "atom mappings for symmetric ligands must not be inferred or reordered."
+        )
+    return names
+
+
+def gro_atom_names(path: Path) -> list[str]:
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError as exc:
+        raise HandoffError(f"Cannot read ligand GRO coordinates {path}: {exc}") from exc
+    if len(lines) < 3:
+        raise HandoffError("Ligand GRO coordinates are incomplete")
+    try:
+        count = int(lines[1].strip())
+    except ValueError as exc:
+        raise HandoffError("Ligand GRO atom count is invalid") from exc
+    if count < 1 or len(lines) < count + 3:
+        raise HandoffError("Ligand GRO atom records are incomplete")
+    names: list[str] = []
+    for index, line in enumerate(lines[2 : 2 + count], start=1):
+        name = line[10:15].strip() if len(line) >= 15 else ""
+        if not name:
+            raise HandoffError(f"Ligand GRO has a missing atom name at atom record {index}")
+        names.append(name)
+    return names
+
+
+def alignment_admission(pose_path: Path, ligand_gro_path: Path) -> dict[str, Any]:
+    pose_names = set(pdbqt_atom_names(pose_path))
+    gro_names = list(dict.fromkeys(gro_atom_names(ligand_gro_path)))
+    shared = [name for name in gro_names if name in pose_names and not name.upper().startswith("H")]
+    if len(shared) < 3:
+        raise HandoffError(
+            f"Pose-to-ligand alignment requires at least three shared non-hydrogen atom names; found {len(shared)}: "
+            f"{', '.join(shared) if shared else 'none'}. Regenerate the ligand PDBQT with unique, stable names "
+            "matching the validated ligand GRO before docking; do not infer or reorder atom mappings."
+        )
+    return {
+        "status": "validated",
+        "shared_non_hydrogen_atom_names": shared,
+        "shared_non_hydrogen_atom_count": len(shared),
+        "minimum_required": 3,
+    }
+
+
 def create(args: argparse.Namespace) -> dict[str, Any]:
     manifest_path = Path(args.docking_manifest).expanduser().resolve()
     poses_path = Path(args.ranked_poses).expanduser().resolve()
@@ -136,6 +207,9 @@ def create(args: argparse.Namespace) -> dict[str, Any]:
         if not protein_family.startswith(parameter_family):
             raise HandoffError(f"Force-field family mismatch: ligand {parameter_force_field} requires a {parameter_family}-family protein force field")
         source_hashes["parameterization"] = sha256(parameterization_path)
+        topology_ref = existing_file(parameterization["topology"], "parameterization.topology")
+        coordinates_ref = existing_file(parameterization["coordinates"], "parameterization.coordinates")
+        admission = alignment_admission(Path(pose_ref["path"]), Path(coordinates_ref["path"]))
         ligand = {
             "applicable": True,
             "identity": parameterization["ligand_identity"],
@@ -143,10 +217,11 @@ def create(args: argparse.Namespace) -> dict[str, Any]:
             "force_field": parameter_force_field,
             "force_field_family": parameter_family,
             "protein_force_field": args.protein_force_field,
-            "topology": existing_file(parameterization["topology"], "parameterization.topology"),
-            "coordinates": existing_file(parameterization["coordinates"], "parameterization.coordinates"),
+            "topology": topology_ref,
+            "coordinates": coordinates_ref,
             "parameterization_provenance": parameterization.get("provenance", {}),
             "validation": parameterization["validation"],
+            "alignment_admission": admission,
         }
     else:
         ligand = {"applicable": False, "reason": "not applicable to protein-only/PPI workflow"}
@@ -163,7 +238,7 @@ def create(args: argparse.Namespace) -> dict[str, Any]:
         "environment_receipt": environment,
         "ligand": ligand,
         "source": {"docking_manifest": str(manifest_path), "ranked_poses": str(poses_path), "hashes": source_hashes},
-        "validation": {"status": "validated", "checks": ["selected pose exists", "source hashes recorded", "ligand topology and coordinates validated" if ligand["applicable"] else "ligand fields not applicable", "force-field families are compatible" if ligand["applicable"] else "force-field family not applicable"], "unresolved_warnings": args.warning or []},
+        "validation": {"status": "validated", "checks": ["selected pose exists", "source hashes recorded", "ligand topology and coordinates validated" if ligand["applicable"] else "ligand fields not applicable", f"pose-to-ligand named-atom alignment admitted ({ligand['alignment_admission']['shared_non_hydrogen_atom_count']} shared non-hydrogen atom names)" if ligand["applicable"] else "pose-to-ligand alignment not applicable", "force-field families are compatible" if ligand["applicable"] else "force-field family not applicable"], "unresolved_warnings": args.warning or []},
         "scientific_interpretation": {"docking_score": "A docking-engine ranking output, not experimental affinity or binding free energy.", "post_md_free_energy": "Not computed by this handoff."},
     }
 
@@ -185,7 +260,9 @@ def validate(data: dict[str, Any]) -> list[str]:
             elif sha256(Path(path_value)) != expected: failures.append(f"source {label} hash does not match")
     selected = data.get("selection", {}).get("coordinates")
     failure = verify_file_reference(selected, "selected pose")
+    selected_path: Path | None = None
     if failure: failures.append(failure)
+    elif isinstance(selected, dict): selected_path = Path(selected["path"]).expanduser()
     environment = data.get("environment_receipt")
     failure = verify_file_reference(environment, "environment receipt")
     if failure: failures.append(failure)
@@ -200,12 +277,25 @@ def validate(data: dict[str, Any]) -> list[str]:
     if system_type == "protein-ligand":
         if not ligand.get("applicable"): failures.append("ligand must be applicable")
         if ligand.get("validation", {}).get("status") != "validated": failures.append("ligand parameterization is not validated")
+        valid_ligand_references: dict[str, Path] = {}
         for field in ("topology", "coordinates"):
             reference = ligand.get(field, {})
             failure = verify_file_reference(reference, f"ligand.{field}")
             if failure: failures.append(failure)
+            elif isinstance(reference, dict): valid_ligand_references[field] = Path(reference["path"]).expanduser()
         if ligand.get("force_field_family") not in {"amber", "charmm"}: failures.append("ligand force-field family is invalid")
         if not isinstance(ligand.get("protein_force_field"), str) or not ligand["protein_force_field"].strip(): failures.append("protein force field is required")
+        recorded_admission = ligand.get("alignment_admission")
+        if not isinstance(recorded_admission, dict):
+            failures.append("ligand.alignment_admission is required for protein-ligand handoffs; recreate this legacy handoff")
+        if selected_path is not None and "coordinates" in valid_ligand_references:
+            try:
+                checked_admission = alignment_admission(selected_path, valid_ligand_references["coordinates"])
+            except HandoffError as exc:
+                failures.append(f"pose-to-ligand alignment admission failed: {exc}")
+            else:
+                if isinstance(recorded_admission, dict) and recorded_admission != checked_admission:
+                    failures.append("ligand.alignment_admission does not match the checked pose/GRO atom-name mapping")
     return failures
 
 

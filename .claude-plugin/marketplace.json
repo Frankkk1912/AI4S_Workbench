@@ -8,7 +8,7 @@
     {
       "name": "molecular-modeling-workbench",
       "source": "./plugins/molecular-modeling-workbench",
-      "description": "Auditable molecular docking, visualization, and molecular dynamics workflows."
+      "description": "Auditable WSL-native onboarding, molecular docking, visualization, and molecular dynamics workflows."
     }
   ]
 }

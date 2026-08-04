@@ -13,11 +13,17 @@ included.
 
 ## Quick start
 
-Clone this repository in your WSL2 Linux home directory, then follow the
-plugin's README. The public plugin includes both `source-skills/` and its
-generated `skills/` bundle, so `npm run sync`, `npm run check`, and `npm test`
-can run from a clean checkout.
+Windows 11 newcomers can download a reviewed local copy and run the plugin's
+non-destructive PowerShell preflight. Scientific work then moves to a fresh
+Linux-side clone under Ubuntu 22.04 WSL2, where the WSL initializer creates the
+onboarding checklist and a Codex CLI or Claude Code handoff. Follow the plugin's
+detailed README; Windows desktop clients are not scientific command executors.
+
+The public plugin includes both `source-skills/` and its generated `skills/`
+bundle, so `npm run sync`, `npm run check`, and `npm test` can run from a clean
+checkout.
 
 Scientific tools such as GNINA, Vina, GROMACS, ACPYPE, ChimeraX, and PyMOL are
-not downloaded automatically. Run the environment audit and retain its receipt
-before starting a scientific workflow.
+not downloaded automatically. WSL enablement, Docker, GPU drivers, privileged
+changes, and Agent login remain explicit user handoffs. Run the environment
+audit and retain its verified receipt before starting a scientific workflow.

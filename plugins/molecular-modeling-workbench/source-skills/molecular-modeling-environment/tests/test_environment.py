@@ -1,3 +1,5 @@
+import contextlib
+import io
 import json
 import importlib.util
 import subprocess
@@ -76,6 +78,26 @@ class EnvironmentCliTests(unittest.TestCase):
             plan = ENVIRONMENT.build_plan("cpu-fallback", ["vina"], Path(tmp))
         self.assertEqual(plan["actions"][0]["command"][-1], "vina")
 
+    def test_dssp_plan_uses_dssp_package_and_mkdssp_binary(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            action = ENVIRONMENT.build_plan("cpu-fallback", ["dssp"], root)["actions"][0]
+        self.assertEqual(action["command"][-1], "dssp")
+        self.assertNotIn("mkdssp", action["command"])
+        self.assertEqual(action["smoke_test"], [str(root / "environments" / "dssp" / "bin" / "mkdssp"), "--version"])
+        self.assertEqual(ENVIRONMENT.MANAGED_TOOL_COMPONENTS["mkdssp"], "dssp")
+
+    def test_bootstrap_rejects_a_signed_legacy_dssp_plan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan = ENVIRONMENT.build_plan("cpu-fallback", ["dssp"], root)
+            plan["actions"][0]["command"][-1] = "mkdssp"
+            plan["plan_sha256"] = ENVIRONMENT.plan_hash(plan)
+            plan_path = root / "legacy_install_plan.json"
+            ENVIRONMENT.write_json(plan_path, plan)
+            with self.assertRaisesRegex(ENVIRONMENT.EnvironmentError, "Legacy DSSP plan"):
+                ENVIRONMENT.bootstrap(plan_path, root)
+
     def test_acpype_plan_uses_a_dedicated_ambertools_prefix(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -102,6 +124,57 @@ class EnvironmentCliTests(unittest.TestCase):
                 receipt = ENVIRONMENT.bootstrap(plan_path, root)
         self.assertEqual(receipt["actions"][0]["status"], "installed")
         self.assertEqual(run.call_args_list[0].args[0][0], "/usr/bin/mamba")
+
+    def test_bootstrap_action_failure_writes_receipt_and_cli_exits_nonzero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan_path = root / "install_plan.json"
+            ENVIRONMENT.write_json(plan_path, ENVIRONMENT.build_plan("cpu-fallback", ["vina"], root))
+            failed = subprocess.CompletedProcess(args=[], returncode=7, stdout="solver output", stderr="package missing")
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            argv = [str(SCRIPT), "bootstrap", "--plan", str(plan_path), "--output-dir", str(root)]
+            with mock.patch.object(sys, "argv", argv), mock.patch.object(ENVIRONMENT.shutil, "which", side_effect=lambda name: "/usr/bin/micromamba" if name == "micromamba" else None), mock.patch.object(ENVIRONMENT.subprocess, "run", return_value=failed), mock.patch.object(ENVIRONMENT.time, "sleep"), contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr), self.assertRaises(SystemExit) as raised:
+                ENVIRONMENT.main()
+            receipt = json.loads((root / "environment_receipt.json").read_text())
+        self.assertEqual(raised.exception.code, 1)
+        self.assertNotIn("Success", stdout.getvalue())
+        self.assertIn("Receipt written", stderr.getvalue())
+        action = receipt["actions"][0]
+        self.assertEqual(action["status"], "failed")
+        self.assertEqual(action["stdout"], "solver output")
+        self.assertEqual(action["stderr"], "package missing")
+        self.assertEqual(len(action["attempts"]), 3)
+
+    def test_bootstrap_smoke_failure_writes_receipt_and_cli_exits_nonzero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan_path = root / "install_plan.json"
+            ENVIRONMENT.write_json(plan_path, ENVIRONMENT.build_plan("cpu-fallback", ["vina"], root))
+            installed = subprocess.CompletedProcess(args=[], returncode=0, stdout="installed", stderr="")
+            smoke_failed = subprocess.CompletedProcess(args=[], returncode=9, stdout="", stderr="cannot start")
+            argv = [str(SCRIPT), "bootstrap", "--plan", str(plan_path), "--output-dir", str(root)]
+            with mock.patch.object(sys, "argv", argv), mock.patch.object(ENVIRONMENT.shutil, "which", side_effect=lambda name: "/usr/bin/micromamba" if name == "micromamba" else None), mock.patch.object(ENVIRONMENT.subprocess, "run", side_effect=[installed, smoke_failed]), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+                ENVIRONMENT.main()
+            receipt = json.loads((root / "environment_receipt.json").read_text())
+        self.assertEqual(raised.exception.code, 1)
+        action = receipt["actions"][0]
+        self.assertEqual(action["status"], "failed")
+        self.assertEqual(action["failure_stage"], "smoke_test")
+        self.assertEqual(action["smoke_test"]["returncode"], 9)
+        self.assertEqual(action["smoke_test"]["stderr"], "cannot start")
+
+    def test_blocked_bootstrap_writes_receipt_and_cli_exits_nonzero(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            plan_path = root / "install_plan.json"
+            ENVIRONMENT.write_json(plan_path, ENVIRONMENT.build_plan("cpu-fallback", ["vina"], root))
+            argv = [str(SCRIPT), "bootstrap", "--plan", str(plan_path), "--output-dir", str(root)]
+            with mock.patch.object(sys, "argv", argv), mock.patch.object(ENVIRONMENT.shutil, "which", return_value=None), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as raised:
+                ENVIRONMENT.main()
+            receipt = json.loads((root / "environment_receipt.json").read_text())
+        self.assertEqual(raised.exception.code, 1)
+        self.assertEqual(receipt["actions"][0]["status"], "blocked")
 
     def test_audit_discovers_acpype_in_its_managed_prefix(self):
         with tempfile.TemporaryDirectory() as tmp:

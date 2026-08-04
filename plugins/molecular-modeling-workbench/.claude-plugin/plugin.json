@@ -1,7 +1,7 @@
 {
   "name": "molecular-modeling-workbench",
-  "version": "0.1.0",
-  "description": "Auditable molecular docking, visualization, and molecular dynamics workflows.",
+  "version": "0.2.0",
+  "description": "Auditable WSL-native onboarding, molecular docking, visualization, and molecular dynamics workflows.",
   "author": {
     "name": "Frankkk1912",
     "url": "https://github.com/Frankkk1912"

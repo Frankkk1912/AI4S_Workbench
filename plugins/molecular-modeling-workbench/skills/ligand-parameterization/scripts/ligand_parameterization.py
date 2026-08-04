@@ -6,6 +6,8 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
+import re
 import shutil
 import subprocess
 import sys
@@ -19,6 +21,8 @@ AUTO_ENGINES = ("acpype",)
 HANDOFF_ENGINES = ("sobtop", "cgenff")
 DETECT_TOOLS = ("acpype", "antechamber", "obabel", "sobtop", "gmx")
 SUPPORTED_LIGAND_SUFFIXES = (".mol2", ".sdf", ".pdb")
+CHARGE_METHODS = ("bcc", "user")
+FAILED_ACTION_STATUSES = {"failed", "blocked", "incomplete"}
 
 
 class ParameterizationError(ValueError):
@@ -93,7 +97,7 @@ def detect(output_dir: Path) -> dict[str, Any]:
         "amber-gaff": {
             "engine": "acpype",
             "auto_runnable": bool(tools["acpype"]["available"]),
-            "note": "GAFF2 parameters via acpype (Antechamber/parmchk2/tleap wrapper); -c user keeps the user-provided net charge.",
+            "note": "GAFF2 parameters via acpype (Antechamber/parmchk2/tleap wrapper); AM1-BCC is the default charge method, while user charges require an explicitly reviewed MOL2 input.",
             "fallback": "sobtop is a manual-download alternative; it is never fetched automatically.",
         },
         "charmm-cgenff": {
@@ -112,21 +116,32 @@ def detect(output_dir: Path) -> dict[str, Any]:
     }
 
 
-def build_plan(ligand: Path, force_field: str, net_charge: int, identity: str, engine: str | None) -> dict[str, Any]:
+def build_plan(ligand: Path, force_field: str, net_charge: int, identity: str, engine: str | None, charge_method: str | None = None) -> dict[str, Any]:
     chosen = engine or default_engine(force_field)
     if chosen not in ENGINES:
         raise ParameterizationError(f"Unsupported engine: {chosen}")
     if force_field == "charmm-cgenff" and chosen == "acpype":
         raise ParameterizationError("acpype produces GAFF/AMBER parameters; use engine cgenff for charmm-cgenff.")
     ligand_ref = existing_file(str(ligand), "ligand structure")
+    selected_charge_method = charge_method or "bcc"
+    if selected_charge_method not in CHARGE_METHODS:
+        raise ParameterizationError(f"Unsupported charge method: {selected_charge_method}")
+    ligand_suffix = Path(ligand_ref["path"]).suffix.lower()
+    if selected_charge_method == "user" and ligand_suffix != ".mol2":
+        raise ParameterizationError("Charge method 'user' requires an explicitly reviewed MOL2 file containing user partial charges; use --charge-method bcc for SDF/PDB inputs.")
     actions: list[dict[str, Any]] = []
     if chosen in AUTO_ENGINES:
+        charge_policy = (
+            "-c bcc: ACPYPE/Antechamber computes AM1-BCC partial charges using the explicitly supplied net charge."
+            if selected_charge_method == "bcc"
+            else "-c user: ACPYPE reads reviewed user partial charges from the MOL2 input; the net charge remains explicitly supplied."
+        )
         actions.append({
             "engine": "acpype",
             "kind": "local_command",
-            "command": ["acpype", "-i", ligand_ref["path"], "-b", identity, "-n", str(net_charge), "-c", "user", "-a", "gaff2", "-o", "gmx"],
+            "command": ["acpype", "-i", ligand_ref["path"], "-b", identity, "-n", str(net_charge), "-c", selected_charge_method, "-a", "gaff2", "-o", "gmx"],
             "expected_outputs": {"topology": f"{identity}.acpype/{identity}_GMX.itp", "coordinates": f"{identity}.acpype/{identity}_GMX.gro"},
-            "charge_policy": "-c user: the explicit net charge is used as given; per-atom charges still come from the input structure.",
+            "charge_policy": charge_policy,
         })
     elif chosen == "sobtop":
         actions.append({
@@ -152,6 +167,7 @@ def build_plan(ligand: Path, force_field: str, net_charge: int, identity: str, e
         "ligand": ligand_ref,
         "ligand_identity": identity,
         "force_field": force_field,
+        "charge_method": selected_charge_method,
         "net_charge": net_charge,
         "net_charge_source": "explicitly provided by the user; never inferred from docking outputs",
         "actions": actions,
@@ -176,8 +192,159 @@ def read_plan(plan_path: Path) -> dict[str, Any]:
     return plan
 
 
+def validate_charge_method(plan: dict[str, Any]) -> None:
+    acpype_actions = [action for action in plan.get("actions", []) if action.get("engine") == "acpype" and action.get("kind") == "local_command"]
+    if not acpype_actions:
+        return
+    ligand_suffix = Path(plan.get("ligand", {}).get("path", "")).suffix.lower()
+    charge_method = plan.get("charge_method")
+    for action in acpype_actions:
+        command = action.get("command", [])
+        try:
+            command_charge_method = command[command.index("-c") + 1]
+        except (ValueError, IndexError):
+            raise ParameterizationError("ACPYPE plan does not contain a valid -c charge method; regenerate and review the plan before run.")
+        if command_charge_method == "user" and ligand_suffix in {".sdf", ".pdb"}:
+            raise ParameterizationError("Legacy SDF/PDB plan uses ACPYPE -c user, which requires MOL2 user partial charges; regenerate with --charge-method bcc and review the new plan before run.")
+        if charge_method not in CHARGE_METHODS:
+            raise ParameterizationError("Plan does not explicitly record charge_method as bcc or user; regenerate and review the plan before run.")
+        if charge_method == "user" and ligand_suffix != ".mol2":
+            raise ParameterizationError("Charge method 'user' is permitted only for an explicitly reviewed MOL2 input; regenerate and review the plan before run.")
+        if command_charge_method != charge_method:
+            raise ParameterizationError("Plan charge_method does not match the approved ACPYPE -c argument; regenerate and review the plan before run.")
+
+
+LDD_NOT_FOUND = re.compile(r"^\s*([A-Za-z0-9_+.-]+\.so(?:\.[A-Za-z0-9_+.-]+)*)\s+=>\s+not found\s*$")
+
+
+def acpype_bundled_bin(resolved_acpype: Path, prefix_lib: Path) -> Path | None:
+    """Locate bundled AmberTools from ACPYPE's prefix-owned Python package."""
+    try:
+        with resolved_acpype.open("rb") as handle:
+            shebang = handle.readline(4096).decode("utf-8").strip()
+    except (OSError, UnicodeDecodeError):
+        return None
+    if not shebang.startswith("#!"):
+        return None
+    interpreter_text = shebang[2:].strip()
+    if not interpreter_text or any(character.isspace() for character in interpreter_text):
+        return None
+    interpreter = Path(interpreter_text)
+    try:
+        resolved_interpreter = interpreter.resolve(strict=True)
+        if not resolved_interpreter.is_file() or resolved_interpreter.parent != resolved_acpype.parent or not resolved_interpreter.name.startswith("python"):
+            return None
+        discovery_environment = os.environ.copy()
+        discovery_environment.pop("PYTHONHOME", None)
+        discovery_environment.pop("PYTHONPATH", None)
+        discovery_environment["LC_ALL"] = "C"
+        result = subprocess.run(
+            [str(resolved_interpreter), "-I", "-c", "import sysconfig; print(sysconfig.get_path('purelib'))"],
+            text=True,
+            capture_output=True,
+            timeout=10,
+            check=False,
+            env=discovery_environment,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return None
+    purelib_text = result.stdout.strip()
+    if result.returncode != 0 or not purelib_text or "\n" in purelib_text:
+        return None
+    purelib = Path(purelib_text)
+    if not purelib.is_absolute():
+        return None
+    try:
+        prefix_lib_resolved = prefix_lib.resolve(strict=True)
+        purelib_resolved = purelib.resolve(strict=True)
+        purelib_resolved.relative_to(prefix_lib_resolved)
+        bundled_bin = (purelib_resolved / "acpype" / "amber_linux" / "bin").resolve(strict=True)
+        bundled_bin.relative_to(prefix_lib_resolved)
+    except (OSError, ValueError):
+        return None
+    return bundled_bin if bundled_bin.is_dir() else None
+
+
+def system_ldd() -> Path | None:
+    for candidate in (Path("/usr/bin/ldd"), Path("/bin/ldd")):
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return candidate
+    return None
+
+
+def is_elf(path: Path) -> bool:
+    try:
+        with path.open("rb") as handle:
+            return handle.read(4) == b"\x7fELF"
+    except OSError:
+        return False
+
+
+def acpype_missing_prefix_libraries(resolved_acpype: Path, prefix_lib: Path) -> list[Path]:
+    bundled_bin = acpype_bundled_bin(resolved_acpype, prefix_lib)
+    ldd = system_ldd()
+    if bundled_bin is None or ldd is None:
+        return []
+    bundled_lib = bundled_bin.parent / "lib"
+    if not bundled_lib.is_dir():
+        return []
+    ldd_environment = os.environ.copy()
+    ldd_environment["LC_ALL"] = "C"
+    ldd_environment["LD_LIBRARY_PATH"] = str(bundled_lib)
+    ldd_environment.pop("LD_PRELOAD", None)
+    sonames: list[str] = []
+    try:
+        binaries = sorted(
+            (path for path in bundled_bin.iterdir() if path.is_file() and is_elf(path)),
+            key=lambda path: path.name.casefold(),
+        )
+    except OSError:
+        return []
+    for binary in binaries:
+        try:
+            result = subprocess.run(
+                [str(ldd), str(binary)],
+                text=True,
+                capture_output=True,
+                timeout=15,
+                check=False,
+                env=ldd_environment,
+            )
+        except (OSError, subprocess.TimeoutExpired):
+            continue
+        for line in result.stdout.splitlines():
+            match = LDD_NOT_FOUND.fullmatch(line)
+            if match and match.group(1) not in sonames:
+                sonames.append(match.group(1))
+    libraries = []
+    for soname in sonames:
+        candidate = prefix_lib / soname
+        if candidate.name == soname and candidate.parent == prefix_lib and candidate.is_file():
+            libraries.append(candidate)
+    return libraries
+
+
+def acpype_child_environment(executable: str) -> tuple[dict[str, str] | None, dict[str, Any] | None]:
+    resolved = Path(executable).resolve()
+    if resolved.name != "acpype" or resolved.parent.name != "bin":
+        return None, None
+    prefix_lib = resolved.parent.parent / "lib"
+    if not prefix_lib.is_dir():
+        return None, None
+    child_environment = os.environ.copy()
+    runtime_environment: dict[str, Any] = {}
+    preload_libraries = acpype_missing_prefix_libraries(resolved, prefix_lib)
+    if preload_libraries:
+        preload = os.pathsep.join(str(path) for path in preload_libraries)
+        inherited_preload = child_environment.get("LD_PRELOAD")
+        child_environment["LD_PRELOAD"] = preload if not inherited_preload else f"{preload}{os.pathsep}{inherited_preload}"
+        runtime_environment["LD_PRELOAD_prepend"] = [str(path) for path in preload_libraries]
+    return child_environment, runtime_environment
+
+
 def run_plan(plan_path: Path, output_dir: Path, environment_receipt_path: str) -> dict[str, Any]:
     plan = read_plan(plan_path)
+    validate_charge_method(plan)
     required_tool = "acpype" if any(action.get("kind") == "local_command" for action in plan.get("actions", [])) else None
     receipt_reference = environment_receipt(environment_receipt_path, required_tool)
     receipts: list[dict[str, Any]] = []
@@ -193,14 +360,21 @@ def run_plan(plan_path: Path, output_dir: Path, environment_receipt_path: str) -
             receipts.append({"engine": engine, "status": "blocked", "detail": f"{engine} is not on PATH; install it in user space or choose a handoff engine."})
             continue
         command = [executable, *action["command"][1:]]
+        child_environment = None
+        runtime_environment = None
+        if engine == "acpype":
+            child_environment, runtime_environment = acpype_child_environment(executable)
         attempts = []
         for attempt in range(2):
-            result = subprocess.run(command, cwd=output_dir, text=True, capture_output=True, check=False)
+            result = subprocess.run(command, cwd=output_dir, text=True, capture_output=True, check=False, env=child_environment)
             attempts.append({"attempt": attempt + 1, "returncode": result.returncode, "stdout": result.stdout[-1000:], "stderr": result.stderr[-1000:]})
             if result.returncode == 0:
                 break
-            time.sleep(2 ** attempt)
+            if attempt == 0:
+                time.sleep(2 ** attempt)
         item: dict[str, Any] = {"engine": engine, "status": "completed" if result.returncode == 0 else "failed", "command": command, "returncode": result.returncode, "attempts": attempts}
+        if runtime_environment:
+            item["runtime_environment"] = runtime_environment
         if result.returncode == 0:
             outputs: dict[str, Any] = {}
             for label, relative in action.get("expected_outputs", {}).items():
@@ -220,6 +394,7 @@ def run_plan(plan_path: Path, output_dir: Path, environment_receipt_path: str) -
         "ligand_identity": plan["ligand_identity"],
         "net_charge": plan["net_charge"],
         "force_field": plan["force_field"],
+        "charge_method": plan.get("charge_method"),
         "environment_receipt": receipt_reference,
         "actions": receipts,
     }
@@ -267,7 +442,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("detect"); p.add_argument("--output-dir", type=Path, required=True)
-    p = sub.add_parser("plan"); p.add_argument("--ligand", type=Path, required=True); p.add_argument("--force-field", choices=FORCE_FIELDS, required=True); p.add_argument("--net-charge", type=int, required=True); p.add_argument("--ligand-identity"); p.add_argument("--engine", choices=ENGINES); p.add_argument("--output-dir", type=Path, required=True)
+    p = sub.add_parser("plan"); p.add_argument("--ligand", type=Path, required=True); p.add_argument("--force-field", choices=FORCE_FIELDS, required=True); p.add_argument("--net-charge", type=int, required=True); p.add_argument("--charge-method", choices=CHARGE_METHODS, help="ACPYPE partial-charge method (default: bcc; user requires a reviewed MOL2)"); p.add_argument("--ligand-identity"); p.add_argument("--engine", choices=ENGINES); p.add_argument("--output-dir", type=Path, required=True)
     p = sub.add_parser("run"); p.add_argument("--plan", type=Path, required=True); p.add_argument("--environment-receipt", required=True); p.add_argument("--output-dir", type=Path, required=True)
     p = sub.add_parser("finalize"); p.add_argument("--receipt", type=Path, required=True); p.add_argument("--topology", required=True); p.add_argument("--coordinates", required=True); p.add_argument("--charges-verified", action="store_true"); p.add_argument("--note", action="append", default=[]); p.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
@@ -279,10 +454,15 @@ def main() -> None:
             if ligand.suffix.lower() not in SUPPORTED_LIGAND_SUFFIXES:
                 raise ParameterizationError(f"Unsupported ligand format {ligand.suffix!r}; use one of {', '.join(SUPPORTED_LIGAND_SUFFIXES)}")
             identity = args.ligand_identity or ligand.stem
-            plan = build_plan(ligand, args.force_field, args.net_charge, identity, args.engine)
+            plan = build_plan(ligand, args.force_field, args.net_charge, identity, args.engine, args.charge_method)
             path = args.output_dir / "ligand_parameterization_plan.json"; write_json(path, plan)
         elif args.command == "run":
-            path = args.output_dir / "parameterization_receipt.json"; write_json(path, run_plan(args.plan, args.output_dir, args.environment_receipt))
+            path = args.output_dir / "parameterization_receipt.json"
+            receipt = run_plan(args.plan, args.output_dir, args.environment_receipt)
+            write_json(path, receipt)
+            failed_statuses = sorted({action.get("status") for action in receipt["actions"]} & FAILED_ACTION_STATUSES)
+            if failed_statuses:
+                raise ParameterizationError(f"Parameterization action ended with {', '.join(failed_statuses)} status; receipt written to: {path}")
         else:
             path = args.output.expanduser().resolve()
             finalize(args.receipt, args.topology, args.coordinates, path, args.charges_verified, args.note)

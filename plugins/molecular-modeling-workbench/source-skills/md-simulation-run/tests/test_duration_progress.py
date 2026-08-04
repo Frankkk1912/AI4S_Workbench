@@ -138,9 +138,11 @@ class DurationProgressTests(unittest.TestCase):
     def test_mock_docking_to_md_contract_pipeline_prepares_manifest(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            pose = root / "pose.pdbqt"; pose.write_text("MODEL 1\nENDMDL\n")
+            pose = root / "pose.pdbqt"
+            pose.write_text("MODEL 1\nATOM      1 C1   LIG A   1       1.000   2.000   3.000  0.00  0.00    +0.000 C\nATOM      2 C2   LIG A   1       2.000   3.000   4.000  0.00  0.00    +0.000 C\nATOM      3 C3   LIG A   1       3.000   4.000   5.000  0.00  0.00    +0.000 C\nENDMDL\n")
             topology = root / "ligand.itp"; topology.write_text("[ atoms ]\n")
-            coordinates = root / "ligand.gro"; coordinates.write_text("ligand\n")
+            coordinates = root / "ligand.gro"
+            coordinates.write_text("ligand\n3\n    1LIG     C1    1   0.100   0.100   0.100\n    1LIG     C2    2   0.200   0.200   0.200\n    1LIG     C3    3   0.300   0.300   0.300\n   1.00000   1.00000   1.00000\n")
             receipt = root / "environment_receipt.json"
             receipt.write_text(json.dumps({"schema_version": "1.1", "artifact_type": "molecular_modeling_environment_receipt", "created_at": dt.datetime.now(dt.timezone.utc).isoformat(), "profile": "wsl2-gpu", "ready": True, "report": {"tools": {"gmx": {"available": False}}, "gromacs_container": {"available": True, "digest": "nvcr.io/nvidia/gromacs@sha256:" + "d" * 64}}}))
             docking_manifest = root / "docking_manifest.json"; docking_manifest.write_text(json.dumps({"receptor": {"path": "receptor.pdbqt"}}))

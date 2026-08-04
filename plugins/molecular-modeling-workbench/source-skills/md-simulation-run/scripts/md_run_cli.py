@@ -113,6 +113,267 @@ def gromacs_command(receipt: dict, work_dir: Path, gmx_args: list[str]) -> list[
         raise MDError("Environment receipt does not contain a verified GROMACS container digest.")
     return [receipt_executable(receipt, "docker"), "run", "--rm", "--gpus", "all", "-v", f"{work_dir.resolve()}:/work", "-w", "/work", digest, "gmx", *gmx_args[1:]]
 
+
+def require_file(path: Path, label: str) -> Path:
+    try:
+        valid = path.is_file() and path.stat().st_size > 0
+    except OSError:
+        valid = False
+    if not valid:
+        raise MDError(f"{label} is missing or empty: {path}")
+    return path.resolve()
+
+
+def file_reference(path: Path) -> dict:
+    resolved = path.resolve()
+    return {"path": str(resolved), "sha256": hashf(resolved)}
+
+
+def work_relative(path: Path, work: Path, label: str) -> str:
+    resolved = require_file(path, label)
+    try:
+        return resolved.relative_to(work.resolve()).as_posix()
+    except ValueError as exc:
+        raise MDError(f"{label} must resolve inside the manifest work directory.") from exc
+
+
+def validate_grompp_manifest(manifest: dict) -> Path:
+    if manifest.get("artifact_type") != "md_run_manifest" or manifest.get("schema_version") != "1.0":
+        raise MDError("MD manifest is invalid or unsupported.")
+    work_value = manifest.get("work_dir")
+    if not isinstance(work_value, str) or not Path(work_value).is_absolute():
+        raise MDError("MD manifest does not contain an absolute work directory.")
+    work = Path(work_value).resolve()
+    if not work.is_dir():
+        raise MDError("MD manifest work directory does not exist.")
+    return work
+
+
+def mdp_has_position_restraints(path: Path) -> bool:
+    for raw_line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw_line.split(";", 1)[0].strip()
+        if re.match(r"^define\s*=", line, flags=re.IGNORECASE) and re.search(r"(?:^|\s)-DPOSRES(?:\S*)?(?:\s|$)", line, flags=re.IGNORECASE):
+            return True
+    return False
+
+
+def predecessor_coordinate(manifest: dict, stage: str) -> tuple[Path, str]:
+    predecessor = STAGE_PREDECESSOR[stage]
+    if predecessor is None:
+        raise MDError("EM grompp requires an explicit source coordinate.")
+    record = manifest.get("stages", {}).get(predecessor, {})
+    reference = record.get("artifacts", {}).get("gro")
+    if record.get("status") != "completed" or not isinstance(reference, dict):
+        raise MDError(f"{stage} grompp requires a completed {predecessor} stage GRO artifact.")
+    path_value = reference.get("path")
+    if not isinstance(path_value, str) or not isinstance(reference.get("sha256"), str):
+        raise MDError(f"{predecessor} stage GRO artifact reference is incomplete.")
+    artifact = require_file(Path(path_value), f"{predecessor} stage GRO artifact")
+    if hashf(artifact) != reference["sha256"]:
+        raise MDError(f"{predecessor} stage GRO artifact hash changed.")
+    return artifact, predecessor
+
+
+def build_grompp_plan(args: argparse.Namespace) -> dict:
+    manifest_path = require_file(args.manifest, "MD manifest")
+    stage_plan_path = require_file(args.stage_plan, "MD stage plan")
+    manifest = load(manifest_path)
+    work = validate_grompp_manifest(manifest)
+    stage_plan = read_stage_plan(stage_plan_path)
+    stage = stage_plan["stage"]
+    profile = stage_plan["profile"]
+    if profile not in GPU_PROFILES:
+        raise MDError("Audited grompp currently requires a GPU profile and the pinned GROMACS Docker container.")
+    if profile != manifest.get("duration_plan", {}).get("profile"):
+        raise MDError("Stage plan profile does not match the prepared MD manifest.")
+    mdp = require_file(args.mdp, "MDP input")
+    topology = require_file(args.topology, "topology input")
+    mdp_rel = work_relative(mdp, work, "MDP input")
+    topology_rel = work_relative(topology, work, "topology input")
+    if stage == "em":
+        if args.coordinate is None:
+            raise MDError("EM grompp requires --coordinate.")
+        coordinate = require_file(args.coordinate, "EM source coordinate")
+        coordinate_source = {"kind": "explicit", "stage": None}
+    else:
+        if args.coordinate is not None:
+            raise MDError("Successor grompp coordinates must come from the completed predecessor recorded in the manifest; do not pass --coordinate.")
+        coordinate, predecessor = predecessor_coordinate(manifest, stage)
+        coordinate_source = {"kind": "predecessor_gro", "stage": predecessor}
+    coordinate_rel = work_relative(coordinate, work, "grompp coordinate input")
+    reference = None
+    reference_rel = None
+    if args.reference is not None:
+        if stage not in {"nvt", "npt"} or not mdp_has_position_restraints(mdp):
+            raise MDError("--reference is permitted only for NVT or NPT MDPs that explicitly define POSRES restraints.")
+        reference_path = require_file(args.reference, "restraint reference coordinate")
+        reference_rel = work_relative(reference_path, work, "restraint reference coordinate")
+        reference = file_reference(reference_path)
+    if args.maxwarn < 0 or args.maxwarn > 2:
+        raise MDError("--maxwarn must be between 0 and 2.")
+    if args.maxwarn and not args.warning_rationale:
+        raise MDError("Nonzero --maxwarn requires --warning-rationale.")
+    receipt_value = manifest.get("environment_receipt", {}).get("path")
+    if not isinstance(receipt_value, str):
+        raise MDError("MD manifest does not reference an environment receipt.")
+    receipt_path = require_file(Path(receipt_value), "environment receipt")
+    receipt = load(receipt_path)
+    validate_receipt(receipt, profile)
+    docker_path = receipt_executable(receipt, "docker")
+    container = receipt.get("report", {}).get("gromacs_container", {})
+    image_digest = container.get("digest")
+    command = ["gmx", "grompp", "-f", mdp_rel, "-c", coordinate_rel, "-p", topology_rel, "-o", f"{stage_plan['deffnm']}.tpr"]
+    if reference_rel is not None:
+        command.extend(["-r", reference_rel])
+    if args.maxwarn:
+        command.extend(["-maxwarn", str(args.maxwarn)])
+    plan = {
+        "schema_version": "1.0",
+        "artifact_type": "md_grompp_plan",
+        "created_at": now(),
+        "stage": stage,
+        "deffnm": stage_plan["deffnm"],
+        "profile": profile,
+        "work_dir": str(work),
+        "inputs": {
+            "manifest": file_reference(manifest_path),
+            "stage_plan": file_reference(stage_plan_path),
+            "mdp": file_reference(mdp),
+            "topology": file_reference(topology),
+            "coordinate": {**file_reference(coordinate), "source": coordinate_source},
+            "reference": reference,
+            "environment_receipt": file_reference(receipt_path),
+        },
+        "runtime": {"docker_path": docker_path, "gromacs_image_digest": image_digest},
+        "parameters": {"maxwarn": args.maxwarn, "warning_rationale": args.warning_rationale},
+        "output": {"path": str((work / f"{stage_plan['deffnm']}.tpr").resolve()), "deffnm": stage_plan["deffnm"]},
+        "command": command,
+    }
+    plan["plan_sha256"] = plan_hash(plan)
+    return plan
+
+
+def read_grompp_plan(path: Path) -> dict:
+    plan = load(path)
+    if plan.get("artifact_type") != "md_grompp_plan" or plan.get("schema_version") != "1.0" or plan.get("plan_sha256") != plan_hash(plan):
+        raise MDError("Grompp plan is invalid or its hash does not match.")
+    command = plan.get("command")
+    if not isinstance(command, list) or command[:2] != ["gmx", "grompp"]:
+        raise MDError("Grompp plan command is invalid.")
+    return plan
+
+
+def match_planned_input(plan: dict, key: str, supplied: Path | None) -> None:
+    expected = plan.get("inputs", {}).get(key)
+    if expected is None:
+        if supplied is not None:
+            raise MDError(f"{key} was not approved by the grompp plan.")
+        return
+    if supplied is None:
+        raise MDError(f"{key} required by the grompp plan was not supplied.")
+    actual = file_reference(require_file(supplied, f"{key} input"))
+    if actual != {"path": expected.get("path"), "sha256": expected.get("sha256")}:
+        raise MDError(f"{key} input does not match the grompp plan.")
+
+
+def execute_grompp(args: argparse.Namespace) -> dict:
+    plan_path = require_file(args.plan, "grompp plan")
+    plan = read_grompp_plan(plan_path)
+    for key in ("manifest", "stage_plan", "mdp", "topology"):
+        match_planned_input(plan, key, getattr(args, key))
+    match_planned_input(plan, "reference", args.reference)
+    if plan.get("inputs", {}).get("coordinate", {}).get("source", {}).get("kind") == "explicit":
+        match_planned_input(plan, "coordinate", args.coordinate)
+    elif args.coordinate is not None:
+        raise MDError("Successor coordinates are receipt-bound predecessor artifacts; do not pass --coordinate.")
+    manifest = load(args.manifest)
+    work = validate_grompp_manifest(manifest)
+    if str(work) != plan.get("work_dir"):
+        raise MDError("Manifest work directory does not match the grompp plan.")
+    stage_plan = read_stage_plan(args.stage_plan)
+    if stage_plan.get("stage") != plan.get("stage") or stage_plan.get("deffnm") != plan.get("deffnm") or stage_plan.get("profile") != plan.get("profile"):
+        raise MDError("Stage plan fields do not match the grompp plan.")
+    if plan.get("profile") not in GPU_PROFILES:
+        raise MDError("Grompp execution requires a GPU profile and the pinned GROMACS Docker container.")
+    expected_output = {"path": str((work / f"{plan['deffnm']}.tpr").resolve()), "deffnm": plan["deffnm"]}
+    if plan.get("output") != expected_output:
+        raise MDError("Grompp output binding does not match the structured plan.")
+    coordinate_ref = plan.get("inputs", {}).get("coordinate", {})
+    coordinate = require_file(Path(coordinate_ref.get("path", "")), "grompp coordinate input")
+    if hashf(coordinate) != coordinate_ref.get("sha256"):
+        raise MDError("grompp coordinate input hash changed.")
+    source = coordinate_ref.get("source", {})
+    if plan["stage"] == "em":
+        if source != {"kind": "explicit", "stage": None}:
+            raise MDError("EM grompp plan does not bind an explicit source coordinate.")
+    else:
+        expected_predecessor = STAGE_PREDECESSOR[plan["stage"]]
+        if source != {"kind": "predecessor_gro", "stage": expected_predecessor}:
+            raise MDError("Successor grompp plan does not bind its required predecessor GRO.")
+        current, predecessor = predecessor_coordinate(manifest, plan["stage"])
+        if predecessor != source.get("stage") or file_reference(current) != {"path": coordinate_ref.get("path"), "sha256": coordinate_ref.get("sha256")}:
+            raise MDError("Manifest predecessor artifact does not match the grompp plan.")
+    receipt_ref = plan.get("inputs", {}).get("environment_receipt", {})
+    receipt_path = require_file(Path(receipt_ref.get("path", "")), "environment receipt")
+    if hashf(receipt_path) != receipt_ref.get("sha256"):
+        raise MDError("Environment receipt hash changed after grompp planning.")
+    receipt = load(receipt_path)
+    validate_receipt(receipt, plan["profile"])
+    docker_path = receipt_executable(receipt, "docker")
+    container = receipt.get("report", {}).get("gromacs_container", {})
+    if docker_path != plan.get("runtime", {}).get("docker_path") or container.get("digest") != plan.get("runtime", {}).get("gromacs_image_digest"):
+        raise MDError("Receipt-bound Docker path or GROMACS image digest changed after planning.")
+    expected_command = ["gmx", "grompp", "-f", work_relative(args.mdp, work, "MDP input"), "-c", work_relative(coordinate, work, "grompp coordinate input"), "-p", work_relative(args.topology, work, "topology input"), "-o", f"{plan['deffnm']}.tpr"]
+    if args.reference is not None:
+        if plan["stage"] not in {"nvt", "npt"} or not mdp_has_position_restraints(args.mdp):
+            raise MDError("Grompp reference is allowed only for NVT or NPT MDPs that explicitly define POSRES restraints.")
+        expected_command.extend(["-r", work_relative(args.reference, work, "restraint reference coordinate")])
+    maxwarn = plan.get("parameters", {}).get("maxwarn")
+    if not isinstance(maxwarn, int) or maxwarn < 0 or maxwarn > 2:
+        raise MDError("Grompp plan contains an invalid maxwarn value.")
+    if maxwarn and not plan.get("parameters", {}).get("warning_rationale"):
+        raise MDError("Grompp plan has nonzero maxwarn without a reviewed rationale.")
+    if maxwarn:
+        expected_command.extend(["-maxwarn", str(maxwarn)])
+    if plan.get("command") != expected_command:
+        raise MDError("Grompp command differs from the permitted structured argument vector.")
+    tpr = work / f"{plan['deffnm']}.tpr"
+    log = work / f"{plan['deffnm']}.grompp.log"
+    protected_outputs = {tpr.resolve(), log.resolve(), plan_path.resolve(), *(Path(item["path"]).resolve() for item in plan["inputs"].values() if isinstance(item, dict) and isinstance(item.get("path"), str))}
+    if args.output.resolve() in protected_outputs:
+        raise MDError("Grompp receipt output must not overwrite a plan, input, TPR, or log.")
+    if tpr.exists():
+        tpr.unlink()
+    command = gromacs_command(receipt, work, expected_command)
+    try:
+        result = subprocess.run(command, cwd=work, text=True, capture_output=True, check=False)
+    except OSError as exc:
+        result = subprocess.CompletedProcess(command, 127, "", f"Cannot execute receipt-bound Docker: {exc}")
+    log.write_text(result.stdout + "\n--- STDERR ---\n" + result.stderr, encoding="utf-8")
+    completed = result.returncode == 0 and tpr.is_file() and tpr.stat().st_size > 0
+    status_value = "completed" if completed else "failed" if result.returncode else "incomplete"
+    receipt_doc = {
+        "schema_version": "1.0",
+        "artifact_type": "md_grompp_receipt",
+        "created_at": now(),
+        "status": status_value,
+        "stage": plan["stage"],
+        "deffnm": plan["deffnm"],
+        "plan": file_reference(plan_path),
+        "profile": plan["profile"],
+        "gromacs_image_digest": container.get("digest"),
+        "command": command,
+        "returncode": result.returncode,
+        "log": file_reference(log),
+        "artifacts": {"tpr": file_reference(tpr)} if completed else {},
+    }
+    write(args.output, receipt_doc)
+    if not completed:
+        reason = "grompp failed; inspect its receipt-bound log." if result.returncode else "grompp returned zero but did not create a nonempty TPR."
+        raise MDError(reason)
+    return receipt_doc
+
+
 def valid_handoff(path: Path) -> dict:
     data = load(path)
     if data.get("artifact_type") != "docking_to_md_handoff" or data.get("validation", {}).get("status") != "validated": raise MDError("MD handoff is not validated")
@@ -207,6 +468,8 @@ def main() -> None:
         p = sub.add_parser(name); p.add_argument("--manifest", type=Path, required=True); p.add_argument("--log", type=Path, required=True); p.add_argument("--total-steps", type=int, required=True); p.add_argument("--stale-after-minutes", type=float, default=180.0); p.add_argument("--output", type=Path, required=True)
         if name == "watch": p.add_argument("--interval-minutes", type=float, required=True); p.add_argument("--iterations", type=int, required=True)
     p = sub.add_parser("prepare"); p.add_argument("--handoff", type=Path, required=True); p.add_argument("--environment-receipt", type=Path, required=True); p.add_argument("--duration-plan", type=Path, required=True); p.add_argument("--work-dir", type=Path, required=True); p.add_argument("--output", type=Path, required=True)
+    p = sub.add_parser("plan-grompp"); p.add_argument("--manifest", type=Path, required=True); p.add_argument("--stage-plan", type=Path, required=True); p.add_argument("--mdp", type=Path, required=True); p.add_argument("--topology", type=Path, required=True); p.add_argument("--coordinate", type=Path); p.add_argument("--reference", type=Path); p.add_argument("--maxwarn", type=int, choices=(0, 1, 2), required=True); p.add_argument("--warning-rationale"); p.add_argument("--output", type=Path, required=True)
+    p = sub.add_parser("grompp"); p.add_argument("--plan", type=Path, required=True); p.add_argument("--manifest", type=Path, required=True); p.add_argument("--stage-plan", type=Path, required=True); p.add_argument("--mdp", type=Path, required=True); p.add_argument("--topology", type=Path, required=True); p.add_argument("--coordinate", type=Path); p.add_argument("--reference", type=Path); p.add_argument("--output", type=Path, required=True)
     p = sub.add_parser("run"); p.add_argument("--manifest", type=Path, required=True); p.add_argument("--stage-plan", type=Path, required=True); p.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
@@ -215,6 +478,8 @@ def main() -> None:
         elif args.command_name == "status": path = status(args)
         elif args.command_name == "watch": path = watch(args)
         elif args.command_name == "prepare": data = prepare(args); write(args.output, data); path = args.output
+        elif args.command_name == "plan-grompp": data = build_grompp_plan(args); write(args.output, data); path = args.output
+        elif args.command_name == "grompp": data = execute_grompp(args); path = args.output
         else: data = execute(args); write(args.output, data); path = args.output
     except MDError as exc: print(f"Error: {exc}", file=sys.stderr); raise SystemExit(1)
     print(f"Success! Data written to: {path}")

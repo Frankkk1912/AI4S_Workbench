@@ -1,7 +1,7 @@
 {
   "name": "molecular-modeling-workbench",
-  "version": "0.1.0",
-  "description": "Auditable molecular docking, visualization, and molecular dynamics workflows.",
+  "version": "0.2.0",
+  "description": "Auditable WSL-native onboarding, molecular docking, visualization, and molecular dynamics workflows.",
   "author": {
     "name": "Frankkk1912",
     "url": "https://github.com/Frankkk1912"
@@ -19,15 +19,16 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "Molecular Modeling Workbench",
-    "shortDescription": "Auditable docking-to-MD workflows.",
-    "longDescription": "Reproducible, file-based GNINA/Vina docking, complex analysis, ChimeraX/PyMOL visualization, validated docking-to-MD handoffs, and GROMACS workflow orchestration.",
+    "shortDescription": "WSL-native onboarding and docking-to-MD workflows.",
+    "longDescription": "Beginner-guided Windows-to-WSL onboarding plus reproducible, file-based GNINA/Vina docking, complex analysis, ChimeraX/PyMOL visualization, validated docking-to-MD handoffs, and GROMACS workflow orchestration.",
     "developerName": "Frankkk1912",
     "category": "Productivity",
     "capabilities": [
       "Skills"
     ],
     "defaultPrompt": [
-      "Audit my WSL2 GPU molecular-modeling environment.",
+      "Guide me through the Windows 11 to Ubuntu 22.04 WSL2 onboarding checklist without making privileged changes.",
+      "Audit my WSL2 GPU molecular-modeling environment before docking.",
       "Run a reproducible GNINA docking workflow with Vina fallback.",
       "Validate a selected docking pose before starting ligand MD."
     ],

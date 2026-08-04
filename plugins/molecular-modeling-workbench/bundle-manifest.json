@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-07-29T02:47:59.559Z",
+  "generated_at": "2026-08-04T04:36:37.950Z",
   "source_root": "source-skills",
   "bundles": [
     {
       "source": "molecular-modeling-environment",
       "destination": "skills/molecular-modeling-environment",
-      "sha256": "77612161df0899b10af2c46c355f850d35ee6f3971a389168547c87c38130164"
+      "sha256": "b0a7ff576e47656ec55f2237113f644021141498af47cd828ad39f1712a3e390"
     },
     {
       "source": "molecular-geometry-common",
@@ -31,7 +31,7 @@
     {
       "source": "docking-to-md-handoff",
       "destination": "skills/docking-to-md-handoff",
-      "sha256": "4e44eaa8bfa4d12c45ad8dab2542fb5cae4be7d68938fa2a5e4b8292d5390259"
+      "sha256": "bd4a0cffb7385eb0f8488f308529de8ae881e05bf93af9677f909da25d4c7571"
     },
     {
       "source": "docking-visualization",
@@ -41,7 +41,7 @@
     {
       "source": "ligand-parameterization",
       "destination": "skills/ligand-parameterization",
-      "sha256": "31addad879557175b8a48afae7cdf9d12aee5e879f6b01d0274ac2e15343d24b"
+      "sha256": "b8fbf0a1da8a74df2708b54f19424e5d25882cd45e535f1dde437ad427c38daf"
     },
     {
       "source": "md-project-manager",
@@ -51,7 +51,7 @@
     {
       "source": "md-simulation-run",
       "destination": "skills/md-simulation-run",
-      "sha256": "e03702a70b8720cf3a31be9cd79bb93dcd05a0cf2585d114963a7d4fc21e8f6b"
+      "sha256": "c9cd76ec2dc703f1c0ff8373d54c014372f6ddfe5fc1db167d613600d51d2572"
     },
     {
       "source": "md-trajectory-analysis",

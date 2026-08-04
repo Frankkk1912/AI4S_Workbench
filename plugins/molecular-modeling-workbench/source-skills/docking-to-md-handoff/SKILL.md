@@ -43,8 +43,16 @@ Use `validate --handoff md_handoff.json` immediately before MD preparation.
   warnings are mandatory audit fields. The selected docking pose must supply a
   hash-bound individual `coordinate_file`; a shared multi-model PDBQT is not
   admitted as an MD coordinate reference.
+- When an MD handoff is intended, generate the ligand PDBQT with unique, stable
+  atom names **before docking** and verify the docking engine preserves them.
+  Protein-ligand admission rejects duplicate pose atom names and requires at
+  least three shared non-hydrogen atom names between the selected pose PDBQT and
+  the validated ligand GRO. The checked names and count are recorded under
+  `ligand.alignment_admission`; do not infer mappings or reorder symmetric
+  ligands.
 - Validation recomputes the hashes of docking inputs, selected pose, topology,
-  and coordinates. Any changed or missing protected file stops MD admission.
+  and coordinates and rechecks the named-atom alignment admission. Any changed,
+  missing, or malformed protected file stops MD admission.
 - `amber-gaff` requires an AMBER-family protein force field; `charmm-cgenff`
   requires a CHARMM-family protein force field.
 - The environment receipt is schema-checked, must be `ready: true`, and is

@@ -26,7 +26,7 @@ PACKAGE_SPECS = {
     "acpype": ["acpype", "ambertools"],
     "gromacs": ["gromacs"],
     "vina": ["vina"],
-    "dssp": ["mkdssp"],
+    "dssp": ["dssp"],
     "openbabel": ["openbabel"],
     MMPBSA_ANALYSIS_COMPONENT: ["gromacs=2023.4", "gmx_MMPBSA=1.6.5"],
 }
@@ -306,6 +306,12 @@ def bootstrap(plan_path: Path, output_dir: Path) -> dict[str, Any]:
         raise EnvironmentError(f"Invalid plan: {exc}") from exc
     if plan.get("plan_sha256") != plan_hash(plan):
         raise EnvironmentError("Plan hash does not match; regenerate and review the plan before bootstrap.")
+    for action in plan.get("actions", []):
+        if action.get("component") == "dssp" and "mkdssp" in action.get("command", []):
+            raise EnvironmentError(
+                "Legacy DSSP plan requests the unavailable conda-forge package 'mkdssp'; "
+                "regenerate and review the plan before bootstrap."
+            )
     receipts: list[dict[str, Any]] = []
     for action in plan.get("actions", []):
         component = action.get("component")
@@ -339,9 +345,24 @@ def bootstrap(plan_path: Path, output_dir: Path) -> dict[str, Any]:
         if result.returncode == 0:
             smoke = action.get("smoke_test")
             if smoke:
-                smoke_result = subprocess.run(smoke, cwd=output_dir, text=True, capture_output=True, check=False)
-                item["smoke_test"] = {"returncode": smoke_result.returncode, "stdout": smoke_result.stdout[-1000:], "stderr": smoke_result.stderr[-1000:]}
+                try:
+                    smoke_result = subprocess.run(smoke, cwd=output_dir, text=True, capture_output=True, check=False)
+                    item["smoke_test"] = {"returncode": smoke_result.returncode, "stdout": smoke_result.stdout[-1000:], "stderr": smoke_result.stderr[-1000:]}
+                except OSError as exc:
+                    item["smoke_test"] = {"returncode": None, "stdout": "", "stderr": str(exc)}
+                if item["smoke_test"]["returncode"] != 0:
+                    item["status"] = "failed"
+                    item["failure_stage"] = "smoke_test"
     return {"schema_version": "1.0", "artifact_type": "molecular_modeling_environment_receipt", "created_at": stamp(), "plan": str(plan_path.resolve()), "actions": receipts, "warnings": ["ChimeraX is never downloaded automatically."]}
+
+
+def bootstrap_failures(receipt: dict[str, Any]) -> list[dict[str, Any]]:
+    failures = []
+    for action in receipt.get("actions", []):
+        smoke = action.get("smoke_test")
+        if action.get("status") in {"failed", "blocked"} or (smoke is not None and smoke.get("returncode") != 0):
+            failures.append(action)
+    return failures
 
 
 COMPONENT_BINARIES = {"pymol-open-source": "pymol", "gromacs": "gmx", "vina": "vina", "dssp": "mkdssp", "openbabel": "obabel", "acpype": "acpype", MMPBSA_ANALYSIS_COMPONENT: "gmx_MMPBSA"}
@@ -465,7 +486,14 @@ def main() -> None:
         elif args.command == "plan":
             plan = build_plan(args.profile, [v.strip() for v in args.components.split(",") if v.strip()], args.output_dir); path = args.output_dir / "install_plan.json"; write_json(path, plan); (args.output_dir / "install_plan.md").write_text("# Installation plan\n\n```json\n" + json.dumps(plan, indent=2) + "\n```\n", encoding="utf-8")
         elif args.command == "bootstrap":
-            path = args.output_dir / "environment_receipt.json"; write_json(path, bootstrap(args.plan, args.output_dir))
+            path = args.output_dir / "environment_receipt.json"
+            receipt = bootstrap(args.plan, args.output_dir)
+            write_json(path, receipt)
+            failures = bootstrap_failures(receipt)
+            if failures:
+                components = ", ".join(str(item.get("component", "unknown")) for item in failures)
+                print(f"Error: Bootstrap failed or was blocked for: {components}. Receipt written to: {path}", file=sys.stderr)
+                raise SystemExit(1)
         elif args.command == "host-recheck":
             path = args.output_dir / "host_recheck_receipt.json"; write_json(path, host_recheck(args.profile))
         elif args.command == "onboard":

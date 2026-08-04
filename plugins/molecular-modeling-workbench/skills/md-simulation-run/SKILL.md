@@ -23,9 +23,42 @@ uv run scripts/md_run_cli.py prepare --handoff md_handoff.json \
   --work-dir md --output md/md_run_manifest.json
 uv run scripts/md_run_cli.py plan-stage --stage em --deffnm em \
   --profile wsl2-gpu --threads 8 --output md/em_stage_plan.json
+# The assembly contract already created md/em.tpr.
 uv run scripts/md_run_cli.py run --manifest md/md_run_manifest.json \
   --stage-plan md/em_stage_plan.json --output md/md_run_manifest.json
+
+# After EM completes, review a separate, hash-bound NVT preprocessing plan.
+uv run scripts/md_run_cli.py plan-stage --stage nvt --deffnm nvt \
+  --profile wsl2-gpu --threads 8 --output md/nvt_stage_plan.json
+uv run scripts/md_run_cli.py plan-grompp --manifest md/md_run_manifest.json \
+  --stage-plan md/nvt_stage_plan.json --mdp md/nvt.mdp --topology md/topol.top \
+  --reference md/em.gro --maxwarn 0 --output md/nvt_grompp_plan.json
+uv run scripts/md_run_cli.py grompp --plan md/nvt_grompp_plan.json \
+  --manifest md/md_run_manifest.json --stage-plan md/nvt_stage_plan.json \
+  --mdp md/nvt.mdp --topology md/topol.top --reference md/em.gro \
+  --output md/nvt_grompp_receipt.json
+uv run scripts/md_run_cli.py run --manifest md/md_run_manifest.json \
+  --stage-plan md/nvt_stage_plan.json --output md/md_run_manifest.json
 ```
+
+`plan-grompp` is the mandatory preprocessing contract for every TPR not already
+created by audited system assembly. For `em`, pass `--coordinate` explicitly.
+For `nvt`, `npt`, and `md_prod`, do not pass a coordinate: the planner requires
+and hash-binds the completed predecessor GRO recorded in the manifest. Pass
+`--reference` only when an NVT/NPT MDP explicitly uses position restraints;
+other stages reject it. `--maxwarn` must be explicitly selected from 0–2, and a
+nonzero value also requires `--warning-rationale`.
+
+The grompp plan hash-binds the manifest, valid mdrun stage plan, MDP, topology,
+source/predecessor coordinate, optional restraint reference, environment
+receipt, receipt profile and image digest, output prefix, and exact allowlisted
+`gmx grompp` argument vector. `grompp` revalidates every binding, mounts only the
+manifest work directory, and executes through the receipt's absolute Docker
+path with its immutable GPU image digest. It writes a separate grompp receipt,
+command, return code, stdout/stderr log, and successful TPR hash. A nonzero
+GROMACS return code still produces a failed receipt and causes a nonzero CLI
+exit. It never substitutes host `gmx`. Review each plan before executing it;
+neither preprocessing nor `mdrun` starts automatically.
 
 `prepare` rejects a ligand handoff without validated parameterization and
 topology evidence or a missing duration plan. It also recomputes protected
@@ -309,26 +342,20 @@ echo "SOL" | gmx genion -s ions.tpr -o complex_ions.gro -p topol.top \
 ```
 
 ### 2. Running Simulations with GPU Acceleration
-Always use an NVIDIA Docker container on WSL2 to map the GPU seamlessly.
-*   **Recommended Image**: `nvcr.io/nvidia/gromacs:v2023.3`
-*   **Command Setup**:
-    ```bash
-    # Run the GROMACS pipeline inside NVIDIA-backed Docker. 
-    # NOTE: Run these sequentially! Do NOT run them as a single monolithic script.
+Use only the audited `plan-grompp` → `grompp` → `run` sequence shown in the
+Auditable Run Contract. Do not join preprocessing and simulation into shell
+text and do not invoke a mutable image tag directly. The environment receipt
+must identify the absolute Docker executable and immutable digest for
+`nvcr.io/nvidia/gromacs:v2023.3`; the CLI reconstructs the argument-vector
+command without a shell.
 
-    # 1. EM
-    docker run --rm --gpus all -v $(pwd)/md:/work -w /work nvcr.io/nvidia/gromacs:v2023.3 bash -c "gmx grompp -f params/em.mdp -c complex_ions.gro -p topol.top -o em.tpr && gmx mdrun -deffnm em -ntmpi 1 -ntomp 8 -v"
-
-    # 2. NVT
-    docker run --rm --gpus all -v $(pwd)/md:/work -w /work nvcr.io/nvidia/gromacs:v2023.3 bash -c "gmx grompp -f params/nvt.mdp -c em.gro -r em.gro -p topol.top -o nvt.tpr && gmx mdrun -deffnm nvt -ntmpi 1 -ntomp 8 -v"
-
-    # 3. NPT
-    docker run --rm --gpus all -v $(pwd)/md:/work -w /work nvcr.io/nvidia/gromacs:v2023.3 bash -c "gmx grompp -f params/npt.mdp -c nvt.gro -r nvt.gro -t nvt.cpt -p topol.top -o npt.tpr -maxwarn 1 && gmx mdrun -deffnm npt -ntmpi 1 -ntomp 8 -v"
-
-    # 4. Production (100 ns GPU accelerated)
-    docker run --rm --gpus all -v $(pwd)/md:/work -w /work nvcr.io/nvidia/gromacs:v2023.3 bash -c "gmx grompp -f params/md_prod_100ns.mdp -c npt.gro -t npt.cpt -p topol.top -o md_prod.tpr -maxwarn 1 && gmx mdrun -deffnm md_prod -ntmpi 1 -ntomp 8 -nb gpu -v"
-    ```
-    *(Note: Adjust `-ntomp` to match the number of physical cores allocated to your WSL environment. Set `-ntmpi 1` for single-GPU setups to avoid domains partitioning overheads).*
+Repeat the reviewed sequence independently for NVT, NPT, and production. The
+successor grompp plan takes its coordinate from the prior completed manifest
+stage, while the subsequent `run` retains the existing mdrun stage-plan and
+artifact behavior. Production completion still requires the planned `.tpr`,
+`.gro`, `.log`, `.edr`, and `.xtc`. Adjust `--threads` in each mdrun stage plan
+to the reviewed physical-core allocation; the structured plan keeps one MPI
+rank and selects GPU nonbonded work for GPU profiles.
 
 ---
 

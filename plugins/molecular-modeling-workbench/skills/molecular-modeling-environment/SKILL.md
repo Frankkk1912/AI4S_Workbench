@@ -59,7 +59,9 @@ messages only. Profiles are `wsl2-gpu`, `linux-gpu`, `linux-ssh`, and
 - `bootstrap --plan PLAN.json --output-dir DIR`: execute only permitted
   user-space actions from a hash-checked plan. It uses `micromamba`, then
   compatible `mamba` or `conda`, for package prefixes and performs the reviewed
-  Docker image pull for GROMACS. ChimeraX is never downloaded.
+  Docker image pull for GROMACS. ChimeraX is never downloaded. Legacy DSSP
+  plans that request `mkdssp` as the package must be regenerated and reviewed;
+  bootstrap rejects them rather than changing an approved action.
 - `verify --profile PROFILE --output-dir DIR`: write a readiness receipt. GPU
   profiles require a verified immutable digest for the pinned GROMACS image.
 - `onboard --profile PROFILE --output-dir DIR`: write a beginner-facing,

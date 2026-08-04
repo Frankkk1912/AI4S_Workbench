@@ -6,6 +6,15 @@
     "project": "pyproject.toml",
     "policy": "All workbench Python execution uses uv with the committed lockfile."
   },
+  "onboarding": {
+    "windows_host": "Windows 11",
+    "wsl_distribution": "Ubuntu-22.04",
+    "wsl_version": 2,
+    "windows_entrypoint": "scripts/Start-AI4S-Workbench.ps1",
+    "wsl_entrypoint": "scripts/setup-wsl-workbench.sh",
+    "scientific_execution": "wsl-native-only",
+    "workspace_policy": "Scientific projects and large calculation files must remain under the WSL Linux home filesystem, never /mnt/*."
+  },
   "external_tools": {
     "gnina": {"source": "manual user-space binary", "required_evidence": ["absolute_path", "version"]},
     "vina": {"source": "manual binary or per-component prefix", "required_evidence": ["absolute_path", "version"]},

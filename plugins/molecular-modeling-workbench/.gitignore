@@ -4,4 +4,6 @@ coverage/
 *.log
 .venv/
 .test-cache/
+*.tar.gz.enc
+ai4s-onboarding-*/
 release-evidence/**/environments/
