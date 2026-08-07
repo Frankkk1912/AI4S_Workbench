@@ -1,0 +1,27 @@
+# Copy to project root as .gitattributes — mandatory from day one.
+# Without this, Windows checkouts drift to CRLF and Linux runs break.
+
+# Default: normalize all text files to LF in the repo.
+* text=auto eol=lf
+
+# Windows-only scripts keep CRLF (cmd.exe requires it).
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.ps1  text eol=crlf
+
+# Binaries — never normalize.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.icns binary
+*.pdf  binary
+*.zip  binary
+*.tar  binary
+*.gz   binary
+*.wasm binary
+*.exe  binary
+*.dll  binary
+*.so   binary
+*.dylib binary
