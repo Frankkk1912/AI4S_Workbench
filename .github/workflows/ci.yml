@@ -1,0 +1,47 @@
+name: Molecular modeling workbench CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  cpu-contract:
+    name: cpu-contract
+    # Ubuntu is the approved temporary verification gate for this WSL2 project.
+    runs-on: ubuntu-22.04
+    defaults:
+      run:
+        working-directory: plugins/molecular-modeling-workbench
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "22"
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+      # setup-uv v8.1.0
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
+        with:
+          version: "0.11.16"
+          enable-cache: true
+      - name: No unexpected CRLF in tracked text
+        working-directory: .
+        run: |
+          if git grep --cached -Il $'\r' -- \
+            ':!*.png' ':!*.jpg' ':!*.jpeg' ':!*.gif' ':!*.ico' \
+            ':!*.pdf' ':!*.ps1' ':!*.bat' ':!*.cmd' | grep .; then
+            echo "::error::Unexpected CRLF line endings found"
+            exit 1
+          fi
+      - run: npm run check
+      - run: npm test

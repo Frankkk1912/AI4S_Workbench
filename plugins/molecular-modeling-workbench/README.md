@@ -4,7 +4,7 @@
 
 > Turn a fragile docking-to-MD toolchain into an auditable workflow you can launch with one prompt.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-0F766E.svg)](public-release/LICENSE) [![Version: v0.2.0](https://img.shields.io/badge/Version-v0.2.0-2563EB.svg)](https://github.com/Frankkk1912/AI4S_Workbench) [![Platform: WSL2](https://img.shields.io/badge/Platform-WSL2-0F766E.svg)](https://github.com/Frankkk1912/AI4S_Workbench)
+[![License: MIT](https://img.shields.io/badge/License-MIT-0F766E.svg)](../../LICENSE) [![Version: v0.2.0](https://img.shields.io/badge/Version-v0.2.0-2563EB.svg)](https://github.com/Frankkk1912/AI4S_Workbench) [![Platform: WSL2](https://img.shields.io/badge/Platform-WSL2-0F766E.svg)](https://github.com/Frankkk1912/AI4S_Workbench)
 
 ## Overview
 
@@ -201,65 +201,38 @@ Start an MD project from the ready environment receipt and, for this ligand syst
 ## Project Structure
 
 ```text
-ai4s-molecular-modeling-workbench/
-├── .claude-plugin/
-│   └── plugin.json
-├── .codex-plugin/
-│   └── plugin.json
-├── docs/
-│   └── ... design, implementation, and acceptance documents
+AI4S_Workbench/
+├── .github/workflows/              # Ubuntu CI and tag-release workflows
 ├── plugins/
-│   └── ai4s-molecular-modeling-workbench/
-├── public-release/
-│   ├── CHANGELOG.md
-│   ├── CITATION.cff
-│   ├── CONTRIBUTING.md
-│   ├── LICENSE
-│   ├── README.md
-│   └── SECURITY.md
-├── release-evidence/
-│   ├── host-recheck/
-│   ├── v0.1-wsl2-acceptance/
-│   └── v0.2-windows11-wsl2-rtx3080/
-├── scripts/
-│   ├── assemble-plugin.mjs
-│   ├── run-tests.mjs
-│   ├── setup-wsl-workbench.sh
-│   └── verify-plugin.mjs
-├── skills/
-│   ├── docking-complex-analysis/
-│   ├── docking-project-manager/
-│   ├── docking-simulation-run/
-│   ├── docking-to-md-handoff/
-│   ├── docking-visualization/
-│   ├── ligand-parameterization/
-│   ├── md-project-manager/
-│   ├── md-simulation-plotting/
-│   ├── md-simulation-run/
-│   ├── md-trajectory-analysis/
-│   ├── molecular-geometry-common/
-│   └── molecular-modeling-environment/
-├── tasks/
-│   └── ... release and onboarding plans
-├── tests/
-│   ├── manifest.test.mjs
-│   ├── onboarding.test.mjs
-│   ├── plugin.test.mjs
-│   ├── public-export.test.mjs
-│   └── technical-acceptance-receipt.test.mjs
-├── bundle-manifest.json
-├── package.json
-├── plugin-meta.json
-├── pyproject.toml
-├── runtime-contract.json
-└── uv.lock
+│   └── molecular-modeling-workbench/
+│       ├── .claude-plugin/          # Generated Claude Code manifest
+│       ├── .codex-plugin/           # Generated Codex manifest
+│       ├── source-skills/           # Editable source of truth
+│       ├── skills/                  # Generated bundled skills
+│       ├── scripts/                 # Assembly, validation, tests, onboarding
+│       ├── tests/                   # Node contract tests
+│       ├── release-evidence/        # Sanitized technical acceptance receipts
+│       ├── package.json             # Release version source
+│       ├── plugin-meta.json         # Plugin metadata (version must match package)
+│       ├── pyproject.toml
+│       ├── runtime-contract.json
+│       └── uv.lock
+├── AGENTS.md
+├── CHANGELOG.md
+├── CLAUDE.md
+├── CONTRIBUTING.md
+├── LICENSE
+├── README.md
+└── SECURITY.md
 ```
 
-`skills/` contains the 12 bundled workflows and shared library; `scripts/` assembles, verifies, tests, exports, and onboards the plugin. `tests/` enforces contracts, while `release-evidence/`, `tasks/`, and `docs/` retain acceptance evidence and engineering decisions. `public-release/` holds release-facing policy and license files, and `plugins/` contains the assembled distribution tree.
+`source-skills/` is the editable source of truth. Run `npm run sync` to refresh
+`skills/` and generated manifests, then run `npm run check` and `npm test`.
+The release workflow packages the public plugin directly from this repository.
 
 ## Development
 
-The private `package.json` declares no npm dependencies, so a dependency installation step is not required for the checked-in Node scripts. Use the committed Python lockfile and run the real assembly, verification, and contract-test entry points:
+The plugin `package.json` declares no npm dependencies, so a dependency installation step is not required for the checked-in Node scripts. Use the committed Python lockfile and run the real assembly, verification, and contract-test entry points:
 
 ```bash
 node scripts/assemble-plugin.mjs check
@@ -272,4 +245,4 @@ npm run check
 
 ## License
 
-AI4S Molecular Modeling Workbench is released under the MIT License. See [public-release/LICENSE](public-release/LICENSE) for the full license text.
+AI4S Molecular Modeling Workbench is released under the MIT License. See [LICENSE](../../LICENSE) for the full license text.
