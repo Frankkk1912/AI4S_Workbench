@@ -1,0 +1,4 @@
+interface:
+  display_name: "Zotero Literature Manager"
+  short_description: "Search, dedupe, tag, and sync Zotero records"
+  default_prompt: "Use $literature-manager to match ranked evidence against my Zotero library and prepare a project collection sync."

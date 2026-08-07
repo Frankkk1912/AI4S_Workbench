@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PubmedArticleSet>
+  <PubmedArticle>
+    <MedlineCitation>
+      <PMID>12345678</PMID>
+      <Article>
+        <ArticleTitle>GPLD1 regulates cardiac function in heart failure</ArticleTitle>
+        <Abstract>
+          <AbstractText>GPLD1 (phosphatidylinositol-glycan-specific phospholipase D) plays a critical role in cardiovascular disease. We show that GPLD1 expression is elevated in patients with heart failure and contributes to myocardial remodeling.</AbstractText>
+        </Abstract>
+        <Journal>
+          <Title>Journal of Cardiovascular Research</Title>
+          <ISSN>1234-5679</ISSN>
+          <JournalIssue>
+            <PubDate><Year>2023</Year></PubDate>
+          </JournalIssue>
+        </Journal>
+        <AuthorList>
+          <Author><LastName>Smith</LastName><Initials>J</Initials></Author>
+          <Author><LastName>Zhang</LastName><Initials>W</Initials></Author>
+        </AuthorList>
+        <PublicationTypeList>
+          <PublicationType>Journal Article</PublicationType>
+        </PublicationTypeList>
+      </Article>
+      <MeshHeadingList>
+        <MeshHeading><DescriptorName>GPLD1 protein, human</DescriptorName></MeshHeading>
+        <MeshHeading><DescriptorName>Heart Failure</DescriptorName></MeshHeading>
+      </MeshHeadingList>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">12345678</ArticleId>
+        <ArticleId IdType="doi">10.1234/jcr.2023.001</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+  <PubmedArticle>
+    <MedlineCitation>
+      <PMID>87654321</PMID>
+      <Article>
+        <ArticleTitle>Exercise-induced GPLD1 secretion improves vascular health</ArticleTitle>
+        <Abstract>
+          <AbstractText>Physical exercise promotes the secretion of GPLD1 from liver, which enhances vascular function through GPI-anchor cleavage. This mechanism may explain the cardiovascular benefits of exercise.</AbstractText>
+        </Abstract>
+        <Journal>
+          <Title>Nature Medicine</Title>
+          <ISSN>1078-8956</ISSN>
+          <JournalIssue>
+            <PubDate><Year>2022</Year></PubDate>
+          </JournalIssue>
+        </Journal>
+        <AuthorList>
+          <Author><LastName>Johnson</LastName><Initials>A</Initials></Author>
+          <Author><LastName>Li</LastName><Initials>H</Initials></Author>
+          <Author><LastName>Kim</LastName><Initials>S</Initials></Author>
+        </AuthorList>
+        <PublicationTypeList>
+          <PublicationType>Journal Article</PublicationType>
+          <PublicationType>Review</PublicationType>
+        </PublicationTypeList>
+      </Article>
+      <MeshHeadingList>
+        <MeshHeading><DescriptorName>GPLD1 protein, human</DescriptorName></MeshHeading>
+        <MeshHeading><DescriptorName>Exercise</DescriptorName></MeshHeading>
+        <MeshHeading><DescriptorName>Vascular Dysfunction</DescriptorName></MeshHeading>
+      </MeshHeadingList>
+    </MedlineCitation>
+    <PubmedData>
+      <ArticleIdList>
+        <ArticleId IdType="pubmed">87654321</ArticleId>
+        <ArticleId IdType="doi">10.1038/nm.2022.050</ArticleId>
+      </ArticleIdList>
+    </PubmedData>
+  </PubmedArticle>
+</PubmedArticleSet>
