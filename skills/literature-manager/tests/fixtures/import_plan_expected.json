@@ -1,0 +1,79 @@
+{
+  "schema_version": "1.0",
+  "plan_type": "zotero-import",
+  "created_at": "2026-07-12T00:00:00Z",
+  "plan_hash": "sha256:9d26f35b3a5708c90b6b09357b26f1498c06f047323f019423b28d7c33e805a2",
+  "project": {
+    "slug": "gpld1-cvd",
+    "search_date": "2026-07-12"
+  },
+  "target": {
+    "library_type": "user",
+    "library_id": 19552201,
+    "collection_name": "GPLD1 cardiovascular disease",
+    "tags": [
+      "import-run:gpld1-cvd-20260712",
+      "project:gpld1-cvd"
+    ]
+  },
+  "matching": {
+    "mode": "snapshot",
+    "source_library_version": 8,
+    "candidate_limit": 50,
+    "unchecked_create": false
+  },
+  "actions": [
+    {
+      "evidence_id": "doi:10.1000/example.1",
+      "display_rank": null,
+      "decision": "reuse",
+      "reason_codes": ["unique-doi+pmid-match"],
+      "source": {"database": "pubmed", "record_id": "EV1"},
+      "item": {
+        "itemType": "journalArticle",
+        "title": "GPLD1 regulates cardiovascular aging through phospholipid remodeling",
+        "creators": [
+          {"creatorType": "author", "name": "Smith J"},
+          {"creatorType": "author", "name": "Zhang W"}
+        ],
+        "tags": [
+          {"tag": "AI4S:ArticleType:Article"},
+          {"tag": "import-run:gpld1-cvd-20260712"},
+          {"tag": "project:gpld1-cvd"}
+        ],
+        "publicationTitle": "Journal of Cardiovascular Research",
+        "date": "2024",
+        "DOI": "10.1000/example.1",
+        "extra": "PMID: 12345678"
+      },
+      "match": {
+        "zotero_key": "AAAA1111",
+        "zotero_version": 3,
+        "match_kind": "doi+pmid",
+        "matched_identity": "10.1000/example.1"
+      }
+    },
+    {
+      "evidence_id": "doi:10.1000/example.2",
+      "display_rank": null,
+      "decision": "create",
+      "reason_codes": ["no-library-match"],
+      "source": {"database": "pubmed", "record_id": "EV2"},
+      "item": {
+        "itemType": "journalArticle",
+        "title": "Unrelated metabolism study",
+        "creators": [{"creatorType": "author", "name": "Doe A"}],
+        "tags": [
+          {"tag": "AI4S:ArticleType:Article"},
+          {"tag": "import-run:gpld1-cvd-20260712"},
+          {"tag": "project:gpld1-cvd"}
+        ],
+        "publicationTitle": "Metabolism Research",
+        "date": "2022",
+        "DOI": "10.1000/example.2"
+      },
+      "match": null
+    }
+  ],
+  "summary": {"selected": 2, "create": 1, "reuse": 1, "check": 0, "skip": 0}
+}

@@ -1,0 +1,3 @@
+display_name: Scientific Infographic Onepager
+short_description: Build vertical scientific one-page infographics as HTML and PNG.
+default_prompt: Create a scientific one-page infographic from this topic, using schematic visuals unless I provide real data.

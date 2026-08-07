@@ -1,0 +1,59 @@
+{
+  "created_at": "2024-06-15",
+  "ranking_terms": ["GPLD1", "cardiovascular", "heart failure"],
+  "input_count": 3,
+  "deduplicated_count": 3,
+  "records": [
+    {
+      "source": "pubmed",
+      "id": "12345678",
+      "title": "GPLD1 regulates cardiac function in heart failure",
+      "abstract": "GPLD1 plays a critical role in cardiovascular disease.",
+      "authors": ["Smith J", "Zhang W"],
+      "journal": "Journal of Cardiovascular Research",
+      "year": 2023,
+      "doi": "10.1234/jcr.2023.001",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/12345678/",
+      "issns": ["1234-5679"],
+      "mesh_terms": ["GPLD1 protein, human", "Heart Failure"],
+      "article_types": ["Journal Article"],
+      "score": 15.5,
+      "score_reasons": ["title matches 'GPLD1'", "abstract matches 'GPLD1'", "MeSH matches 'GPLD1 protein, human'", "published within 5 years", "DOI available"],
+      "rank": 1
+    },
+    {
+      "source": "arxiv",
+      "id": "2301.01234v1",
+      "title": "GPLD1 as a biomarker for cardiovascular risk assessment",
+      "abstract": "We propose GPLD1 as a novel biomarker for cardiovascular risk stratification.",
+      "authors": ["Chen Y", "Wang L"],
+      "journal": "arXiv",
+      "year": 2023,
+      "doi": "10.1101/2023.01.01234",
+      "url": "http://arxiv.org/abs/2301.01234v1",
+      "issns": [],
+      "mesh_terms": [],
+      "article_types": ["preprint"],
+      "score": 12.5,
+      "score_reasons": ["title matches 'GPLD1'", "abstract matches 'GPLD1'", "published within 5 years", "DOI available"],
+      "rank": 2
+    },
+    {
+      "source": "pubmed",
+      "id": "87654321",
+      "title": "Exercise-induced GPLD1 secretion improves vascular health",
+      "abstract": "Physical exercise promotes the secretion of GPLD1 from liver, which enhances vascular function.",
+      "authors": ["Johnson A", "Li H", "Kim S"],
+      "journal": "Nature Medicine",
+      "year": 2022,
+      "doi": "10.1038/nm.2022.050",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/87654321/",
+      "issns": ["1078-8956"],
+      "mesh_terms": ["GPLD1 protein, human", "Exercise", "Vascular Dysfunction"],
+      "article_types": ["Journal Article", "Review"],
+      "score": 11.0,
+      "score_reasons": ["title matches 'GPLD1'", "abstract matches 'GPLD1'", "MeSH matches 'GPLD1 protein, human'", "published within 5 years", "DOI available", "review article"],
+      "rank": 3
+    }
+  ]
+}

@@ -3,8 +3,17 @@
 ## Source of truth
 
 This public repository is the sole development and release source for the
-Molecular Modeling Workbench. Work on a branch, open a Draft PR early, and use
-GitHub Actions as the Ubuntu 22.04 verification gate.
+Molecular Modeling Workbench and its public-safe reusable skills. Work on a
+branch, open a Draft PR early, and use GitHub Actions as the Ubuntu 22.04
+verification gate.
+
+## Repository layout
+
+- `skills/` contains standalone public-safe skill sources. Each skill is
+  entered through `skills/<name>/SKILL.md`.
+- `plugins/` contains repository-local distributable plugin bundles.
+- `forge/`, private memory, credentials, and machine-local artifacts do not
+  belong in this public repository.
 
 ## Plugin workflow
 

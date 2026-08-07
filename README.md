@@ -1,15 +1,22 @@
 # AI4S Workbench
 
-Public, release-ready AI4S agent plugins maintained by
+Public, release-ready AI4S agent plugins and reusable skills maintained by
 [Frankkk1912](https://github.com/Frankkk1912). This repository intentionally
-contains only distributable workbenches; private research data, personal
-memory, experimental workflows, and machine-specific configuration are not
-included.
+contains only distributable workbenches and public-safe skills; private research
+data, personal memory, experimental staging content, and machine-specific
+configuration are not included.
 
 ## Plugins
 
 - [`molecular-modeling-workbench`](plugins/molecular-modeling-workbench/) —
   auditable docking-to-MD workflows for a WSL2-first public beta.
+
+## Reusable skills
+
+Standalone, public-safe skill sources live in [`skills/`](skills/). Each
+`skills/<name>/SKILL.md` is the entry point for that skill. The private
+`frank_global_memory/` skill, repository-local plugins, and `forge/` staging
+area are intentionally not included here.
 
 ## Quick start
 

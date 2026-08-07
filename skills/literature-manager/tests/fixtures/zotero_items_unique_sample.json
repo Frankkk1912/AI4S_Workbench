@@ -1,0 +1,21 @@
+{
+  "source": "zotero-local-api",
+  "library_type": "user",
+  "library_id": 19552201,
+  "last_modified_version": 8,
+  "items": [
+    {
+      "key": "AAAA1111",
+      "version": 3,
+      "itemType": "journalArticle",
+      "title": "GPLD1 regulates cardiovascular aging through phospholipid remodeling",
+      "DOI": "10.1000/example.1",
+      "PMID": "12345678",
+      "date": "2024",
+      "tags": [
+        { "tag": "existing" }
+      ],
+      "collections": ["OLD123"]
+    }
+  ]
+}
