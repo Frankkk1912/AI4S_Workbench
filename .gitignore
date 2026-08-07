@@ -1,0 +1,57 @@
+# ── MANDATORY security block — paste into every project .gitignore ──────────
+# Agent & local state / secrets — NEVER commit. Verified by the safety scans
+# in SKILL.md (working tree) and gitleaks (history) before any release or
+# visibility flip.
+
+# Harness local state
+.claude/settings.local.json
+.claude/agent-memory-local/
+CLAUDE.local.md
+AGENTS.override.md
+.codex/auth.json
+.codex/*.local.*
+.cursor/
+.pi/settings.local.json
+
+# Secrets & credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials*
+
+# Experimental staging — 不入库 (never committed, per project convention)
+forge/
+
+# OS noise
+.DS_Store
+Thumbs.db
+# ─────────────────────────────────────────────────────────────────────────────
+# NOTE: this block is the SECURITY baseline only. Add the ecosystem ignore
+# (node_modules/, dist/, __pycache__/, .venv/, target/...) separately.
+
+# Local harness directories (plugin manifests use .claude-plugin/.codex-plugin)
+.claude/
+.codex/
+.pi/
+
+# Node/Python build, test, and analysis state
+node_modules/
+coverage/
+dist/
+.test-cache/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+
+# Workbench-local onboarding and encrypted runtime artifacts
+ai4s-onboarding-*/
+release-evidence/**/environments/
+*.tar.gz.enc
+*.bak
