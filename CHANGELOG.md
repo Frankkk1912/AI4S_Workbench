@@ -2,6 +2,10 @@
 
 All notable changes are documented here.
 
+## Unreleased
+
+- Establishes public-repository development, Ubuntu CI, and tag-release gates.
+
 ## 0.2.0 — 2026-08-04
 
 - Adds a non-destructive Windows 11 preflight and a fail-closed Ubuntu 22.04

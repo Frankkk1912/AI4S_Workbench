@@ -1,5 +1,6 @@
 {
   "name": "ai4s-molecular-modeling-workbench",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {

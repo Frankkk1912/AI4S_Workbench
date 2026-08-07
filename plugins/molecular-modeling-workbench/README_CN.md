@@ -4,7 +4,7 @@
 
 > 把脆弱繁琐的对接到 MD 工具链，变成一句话即可启动、全程可审计的科研工作流。
 
-[![许可证：MIT](https://img.shields.io/badge/License-MIT-0F766E.svg)](public-release/LICENSE) [![版本：v0.2.0](https://img.shields.io/badge/Version-v0.2.0-2563EB.svg)](https://github.com/Frankkk1912/AI4S_Workbench) [![平台：WSL2](https://img.shields.io/badge/Platform-WSL2-0F766E.svg)](https://github.com/Frankkk1912/AI4S_Workbench)
+[![许可证：MIT](https://img.shields.io/badge/License-MIT-0F766E.svg)](../../LICENSE) [![版本：v0.2.0](https://img.shields.io/badge/Version-v0.2.0-2563EB.svg)](https://github.com/Frankkk1912/AI4S_Workbench) [![平台：WSL2](https://img.shields.io/badge/Platform-WSL2-0F766E.svg)](https://github.com/Frankkk1912/AI4S_Workbench)
 
 ## 概览（Overview）
 
@@ -192,10 +192,6 @@ claude
 - [x] 发布 v0.1.0，作为首个 WSL2-first 公测版。
 - [x] 完成 v0.2.0 技术验收：Windows 11 onboarding 预检、fail-closed WSL 初始化、Codex/Claude 技能发现、哈希绑定 selected-pose 导出与 docking-to-MD 校验，以及 RTX 3080 GPU MD 执行。
 
-### 进行中（In Progress）
-
-- [ ] 正式打包、添加 tag 并发布 v0.2.0。
-
 ### 计划中（Planned）
 
 - [ ] 评估引入 PLIP；当前相互作用工作流刻意采用确定性的纯 Python 几何计算。
@@ -205,65 +201,38 @@ claude
 ## 项目结构（Project Structure）
 
 ```text
-ai4s-molecular-modeling-workbench/
-├── .claude-plugin/
-│   └── plugin.json
-├── .codex-plugin/
-│   └── plugin.json
-├── docs/
-│   └── ... design, implementation, and acceptance documents
+AI4S_Workbench/
+├── .github/workflows/              # Ubuntu CI 与 tag 发布工作流
 ├── plugins/
-│   └── ai4s-molecular-modeling-workbench/
-├── public-release/
-│   ├── CHANGELOG.md
-│   ├── CITATION.cff
-│   ├── CONTRIBUTING.md
-│   ├── LICENSE
-│   ├── README.md
-│   └── SECURITY.md
-├── release-evidence/
-│   ├── host-recheck/
-│   ├── v0.1-wsl2-acceptance/
-│   └── v0.2-windows11-wsl2-rtx3080/
-├── scripts/
-│   ├── assemble-plugin.mjs
-│   ├── run-tests.mjs
-│   ├── setup-wsl-workbench.sh
-│   └── verify-plugin.mjs
-├── skills/
-│   ├── docking-complex-analysis/
-│   ├── docking-project-manager/
-│   ├── docking-simulation-run/
-│   ├── docking-to-md-handoff/
-│   ├── docking-visualization/
-│   ├── ligand-parameterization/
-│   ├── md-project-manager/
-│   ├── md-simulation-plotting/
-│   ├── md-simulation-run/
-│   ├── md-trajectory-analysis/
-│   ├── molecular-geometry-common/
-│   └── molecular-modeling-environment/
-├── tasks/
-│   └── ... release and onboarding plans
-├── tests/
-│   ├── manifest.test.mjs
-│   ├── onboarding.test.mjs
-│   ├── plugin.test.mjs
-│   ├── public-export.test.mjs
-│   └── technical-acceptance-receipt.test.mjs
-├── bundle-manifest.json
-├── package.json
-├── plugin-meta.json
-├── pyproject.toml
-├── runtime-contract.json
-└── uv.lock
+│   └── molecular-modeling-workbench/
+│       ├── .claude-plugin/          # 生成的 Claude Code manifest
+│       ├── .codex-plugin/           # 生成的 Codex manifest
+│       ├── source-skills/           # 可编辑的唯一源
+│       ├── skills/                  # 生成的打包技能
+│       ├── scripts/                 # 装配、验证、测试、onboarding
+│       ├── tests/                   # Node 契约测试
+│       ├── release-evidence/        # 已脱敏的技术验收凭证
+│       ├── package.json             # 发布版本来源
+│       ├── plugin-meta.json         # 插件元数据（版本必须匹配 package）
+│       ├── pyproject.toml
+│       ├── runtime-contract.json
+│       └── uv.lock
+├── AGENTS.md
+├── CHANGELOG.md
+├── CLAUDE.md
+├── CONTRIBUTING.md
+├── LICENSE
+├── README.md
+└── SECURITY.md
 ```
 
-`skills/` 包含 12 个已打包工作流与共享库；`scripts/` 负责插件装配、验证、测试、导出与 onboarding。`tests/` 强制执行契约，`release-evidence/`、`tasks/` 与 `docs/` 保存验收证据和工程决策。`public-release/` 存放面向发布的政策与许可证文件，`plugins/` 则包含装配后的分发树。
+`source-skills/` 是唯一可编辑源。运行 `npm run sync` 更新 `skills/` 和生成的
+manifest，然后运行 `npm run check` 与 `npm test`。发布工作流直接从此公开仓库
+打包插件。
 
 ## 开发（Development）
 
-私有 `package.json` 没有声明 npm 依赖，因此已提交的 Node 脚本无需额外执行依赖安装。请使用已提交的 Python lockfile，并运行真实的装配、验证与契约测试入口：
+插件 `package.json` 没有声明 npm 依赖，因此已提交的 Node 脚本无需额外执行依赖安装。请使用已提交的 Python lockfile，并运行真实的装配、验证与契约测试入口：
 
 ```bash
 node scripts/assemble-plugin.mjs check
@@ -276,4 +245,4 @@ npm run check
 
 ## 许可证（License）
 
-AI4S 分子建模工作台采用 MIT 许可证发布。完整许可证文本见 [public-release/LICENSE](public-release/LICENSE)。
+AI4S 分子建模工作台采用 MIT 许可证发布。完整许可证文本见 [LICENSE](../../LICENSE)。

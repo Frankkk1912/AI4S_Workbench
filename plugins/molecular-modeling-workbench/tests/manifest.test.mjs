@@ -15,10 +15,25 @@ import { checkPluginAssembly, treeHash } from "../scripts/assemble-plugin.mjs";
 const root = resolve(import.meta.dirname, "..");
 const repoRoot = resolve(root, "../..");
 
-test("plugin-meta.json carries required fields and plain semver version", () => {
-	const meta = JSON.parse(
-		readFileSync(resolve(root, "plugin-meta.json"), "utf8"),
-	);
+function readText(path) {
+	try {
+		return readFileSync(path, "utf8");
+	} catch (error) {
+		assert.fail(`Unable to read ${path}: ${error.message}`);
+	}
+}
+
+function readJson(path) {
+	try {
+		return JSON.parse(readText(path));
+	} catch (error) {
+		assert.fail(`Unable to parse JSON at ${path}: ${error.message}`);
+	}
+}
+
+test("package.json is the release version source and matches plugin metadata", () => {
+	const pkg = readJson(resolve(root, "package.json"));
+	const meta = readJson(resolve(root, "plugin-meta.json"));
 	for (const key of [
 		"name",
 		"version",
@@ -30,18 +45,15 @@ test("plugin-meta.json carries required fields and plain semver version", () => 
 	]) {
 		assert.ok(meta[key], `plugin-meta.json missing ${key}`);
 	}
-	assert.match(meta.version, /^\d+\.\d+\.\d+$/);
-	assert.equal(meta.version, "0.2.0");
+	assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
+	assert.equal(pkg.version, meta.version);
+	assert.equal(pkg.version, "0.2.0");
 });
 
 test("codex and claude manifests are generated and synchronized", () => {
 	assert.match(checkPluginAssembly(), /match all source skills/);
-	const codex = JSON.parse(
-		readFileSync(resolve(root, ".codex-plugin/plugin.json"), "utf8"),
-	);
-	const claude = JSON.parse(
-		readFileSync(resolve(root, ".claude-plugin/plugin.json"), "utf8"),
-	);
+	const codex = readJson(resolve(root, ".codex-plugin/plugin.json"));
+	const claude = readJson(resolve(root, ".claude-plugin/plugin.json"));
 	assert.equal(claude.name, codex.name);
 	assert.equal(claude.version, codex.version);
 	assert.equal(codex.skills, "./skills/");
@@ -68,12 +80,10 @@ test("tree hashing excludes local caches from reproducible bundle manifests", ()
 });
 
 test("repository root exposes a claude marketplace listing this plugin", () => {
-	const marketplace = JSON.parse(
-		readFileSync(resolve(repoRoot, ".claude-plugin/marketplace.json"), "utf8"),
+	const marketplace = readJson(
+		resolve(repoRoot, ".claude-plugin/marketplace.json"),
 	);
-	const meta = JSON.parse(
-		readFileSync(resolve(root, "plugin-meta.json"), "utf8"),
-	);
+	const meta = readJson(resolve(root, "plugin-meta.json"));
 	assert.equal(typeof marketplace.name, "string");
 	const entry = marketplace.plugins.find((p) => p.name === meta.name);
 	assert.ok(entry, "plugin missing from marketplace");
@@ -84,9 +94,7 @@ test("repository root exposes a claude marketplace listing this plugin", () => {
 });
 
 test("runtime contract and Python lock are present", () => {
-	const contract = JSON.parse(
-		readFileSync(resolve(root, "runtime-contract.json"), "utf8"),
-	);
+	const contract = readJson(resolve(root, "runtime-contract.json"));
 	assert.equal(contract.artifact_type, "molecular_modeling_runtime_contract");
 	assert.equal(contract.python.lockfile, "uv.lock");
 	assert.equal(contract.onboarding.windows_host, "Windows 11");
@@ -97,27 +105,24 @@ test("runtime contract and Python lock are present", () => {
 });
 
 test("repository CI runs the locked CPU-only suite", () => {
-	const workflow = readFileSync(
-		resolve(repoRoot, ".github/workflows/molecular-modeling-workbench-ci.yml"),
-		"utf8",
-	);
-	const meta = JSON.parse(
-		readFileSync(resolve(root, "plugin-meta.json"), "utf8"),
-	);
+	const workflow = readText(resolve(repoRoot, ".github/workflows/ci.yml"));
+	const meta = readJson(resolve(root, "plugin-meta.json"));
 	assert.match(workflow, new RegExp(`working-directory: plugins/${meta.name}`));
 	assert.match(workflow, /npm run check/);
 	assert.match(workflow, /npm test/);
+	assert.match(workflow, /runs-on: ubuntu-22\.04/);
+	assert.match(workflow, /workflow_dispatch/);
 	assert.match(workflow, /contents: read/);
 });
 
 test("test runner is platform-neutral and preserves the locked Python contract", () => {
-	const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
+	const pkg = readJson(resolve(root, "package.json"));
 	assert.equal(pkg.scripts.test, "node scripts/run-tests.mjs");
 	assert.equal(
 		pkg.scripts["test:all"],
 		"node scripts/run-tests.mjs --include-deferred",
 	);
-	const runner = readFileSync(resolve(root, "scripts/run-tests.mjs"), "utf8");
+	const runner = readText(resolve(root, "scripts/run-tests.mjs"));
 	assert.match(runner, /deferredPythonSuites/);
 	assert.match(runner, /--include-deferred/);
 	assert.match(runner, /--locked/);
