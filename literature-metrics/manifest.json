@@ -1,0 +1,16 @@
+{
+  "manifest_version": 2,
+  "name": "Literature Metrics",
+  "version": "0.1.13",
+  "description": "Interactive Priority rating plus read-only AI Summary, Agent Tags, Article Type, IF, JCR, CAS, citation, and journal metrics columns for Zotero.",
+  "homepage_url": "https://github.com/Frankkk1912/AI4S_Workbench",
+  "author": "Frank AI4S",
+  "applications": {
+    "zotero": {
+      "id": "literature-metrics@frank-ai4s.local",
+      "update_url": "https://raw.githubusercontent.com/Frankkk1912/AI4S_Workbench/main/literature-metrics/update.json",
+      "strict_min_version": "7.0",
+      "strict_max_version": "10.9.*"
+    }
+  }
+}

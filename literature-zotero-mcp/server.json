@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.frankkk1912/literature-zotero-mcp",
+  "description": "A Zotero MCP for evidence workflows with auditable duplicate candidate detection.",
+  "version": "0.1.0",
+  "repository": {
+    "url": "https://github.com/Frankkk1912/AI4S_Workbench",
+    "source": "github"
+  },
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "literature-zotero-mcp",
+      "version": "0.1.0",
+      "transport": { "type": "stdio" },
+      "environmentVariables": [
+        {
+          "name": "ZOTERO_API_KEY",
+          "description": "Zotero API key (writes/sync/groups; optional for local-only reads).",
+          "isSecret": true,
+          "isRequired": false
+        },
+        {
+          "name": "ZOTEUS_LOCAL",
+          "description": "Use the Zotero desktop local API: auto | on | off.",
+          "isRequired": false
+        },
+        {
+          "name": "ZOTEUS_ALLOW_DELETE",
+          "description": "Set to true to enable permanent deletion (off by default).",
+          "isRequired": false
+        }
+      ]
+    }
+  ]
+}

@@ -14,7 +14,14 @@ SPEC.loader.exec_module(MODULE)
 Atom = MODULE.Atom
 
 
-def make_atom(serial, name, resname, chain, resseq, element="C"):
+def make_atom(
+    serial: int,
+    name: str,
+    resname: str,
+    chain: str,
+    resseq: int,
+    element: str = "C",
+):
     return Atom(
         serial=serial,
         record="HETATM",

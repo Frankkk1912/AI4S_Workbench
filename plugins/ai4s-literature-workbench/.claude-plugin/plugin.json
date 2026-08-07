@@ -1,0 +1,19 @@
+{
+  "name": "ai4s-literature-workbench",
+  "version": "0.1.0",
+  "description": "Auditable literature retrieval, optional verified OA fulltext, Zotero workflows, and evidence-traced writing.",
+  "author": {
+    "name": "Frank AI4S Skill contributors",
+    "url": "https://github.com/Frankkk1912"
+  },
+  "homepage": "https://github.com/Frankkk1912/AI4S_Workbench",
+  "repository": "https://github.com/Frankkk1912/AI4S_Workbench",
+  "license": "MIT",
+  "keywords": [
+    "literature",
+    "zotero",
+    "evidence",
+    "biomedical",
+    "research"
+  ]
+}

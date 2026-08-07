@@ -1,0 +1,7 @@
+interface:
+  display_name: "Academic Literature Retrieval"
+  short_description: "Retrieve and rank auditable source-database evidence"
+  default_prompt: "Use $literature-research to retrieve and rank PubMed evidence for my research question. Save search_plan.json, ranked_all.json, ranked_all.csv, and report.md; add other sources or enrichment only when I explicitly request them."
+
+policy:
+  allow_implicit_invocation: true

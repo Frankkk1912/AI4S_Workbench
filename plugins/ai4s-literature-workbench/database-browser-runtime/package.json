@@ -1,0 +1,51 @@
+{
+  "name": "literature-database-browser",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A visible-browser MCP broker for verified official literature database exports.",
+  "keywords": [
+    "literature",
+    "web-of-science",
+    "mcp",
+    "playwright"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "author": "Frank AI4S Skill contributors",
+  "homepage": "https://github.com/Frankkk1912/AI4S_Workbench",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frankkk1912/AI4S_Workbench.git",
+    "directory": "plugins/ai4s-literature-workbench/database-browser-runtime"
+  },
+  "bin": {
+    "literature-database-browser": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "playwright": "^1.55.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

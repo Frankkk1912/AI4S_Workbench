@@ -1,0 +1,8 @@
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
+import { canonicalCitationPlanHash, executeCitationPlan, type CitationPlan, validateCitationPlan } from '../../src/features/citation-plan.js';
+
+function plan(): CitationPlan { const value:CitationPlan={schema_version:'1.0',plan_type:'zotero-citations',created_at:'2026-07-13T00:00:00Z',plan_hash:'sha256:'.padEnd(71,'0'),target:{library_type:'user',library_id:1},citation_source:{provider:'semantic-scholar',source_sha256:'a'.repeat(64)},actions:[{item_key:'CITE0001',expected_version:3,title:'Paper',decision:'update',reason_codes:['unique-doi-or-pmid-citation-match'],citation:{citation_count:128,provider:'semantic-scholar',retrieved_at:'2026-07-13',source_sha256:'a'.repeat(64)}}],summary:{selected:1,update:1,skip:0}};value.plan_hash=canonicalCitationPlanHash(value);return value; }
+describe('citation refresh plan',()=>{it('is hash-checked and only writes after apply',async()=>{const value=plan();expect(validateCitationPlan(structuredClone(value)).plan_hash).toBe(value.plan_hash);const patchItem=vi.fn(async()=>4);const ctx={web:{getItem:vi.fn(async()=>({key:'CITE0001',version:3,data:{extra:'Human note',tags:[{tag:'topic:x'}]}})),patchItem}} as any;const dry=await executeCitationPlan(ctx,value,{type:'user',id:1},'dry_run');expect(dry.status).toBe('ready');expect(patchItem).not.toHaveBeenCalled();const receiptPath=join(await mkdtemp(join(tmpdir(),'citation-plan-')),'receipt.json');const applied=await executeCitationPlan(ctx,value,{type:'user',id:1},'apply',receiptPath);expect(applied.status).toBe('complete');expect(patchItem.mock.calls[0]![2].extra).toContain('citation_count');});});

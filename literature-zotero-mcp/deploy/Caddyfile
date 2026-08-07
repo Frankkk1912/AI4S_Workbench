@@ -1,0 +1,9 @@
+# Public HTTPS origin → Literature Zotero MCP. Caddy terminates TLS and preserves
+# the Host header, which the server's DNS-rebinding guard requires.
+# {$LITERATURE_ZOTERO_MCP_DOMAIN} comes from .env.
+# For a DuckDNS hostname, use the DNS-01 challenge — build a Caddy image with the
+# duckdns module, or use a custom cert. See docs/deployment.md.
+{$LITERATURE_ZOTERO_MCP_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy literature-zotero-mcp:3939
+}

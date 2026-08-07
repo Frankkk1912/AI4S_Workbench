@@ -1,0 +1,76 @@
+{
+  "plugin": "ai4s-literature-workbench",
+  "version": "0.1.0",
+  "commit": "854cb72",
+  "date": "2026-08-03",
+  "gate": "v0.1.0 release gate 5 (macOS clean-install) and gate 6 (retained machine-readable report)",
+  "platform": {
+    "os": "macOS arm64",
+    "node": "v25.8.1",
+    "codex_cli": "0.145.0",
+    "claude_code": "2.1.218"
+  },
+  "checks": [
+    {
+      "id": "fresh-clone",
+      "result": "pass",
+      "detail": "Clean clone of committed HEAD 854cb72 into a temporary directory"
+    },
+    {
+      "id": "codex-marketplace-add",
+      "result": "pass",
+      "detail": "codex plugin marketplace add (isolated CODEX_HOME), marketplace 'personal' registered"
+    },
+    {
+      "id": "codex-plugin-add",
+      "result": "pass",
+      "detail": "codex plugin add ai4s-literature-workbench@personal: installed, enabled, version 0.1.0"
+    },
+    {
+      "id": "bootstrap",
+      "result": "pass",
+      "detail": "scripts/bootstrap-runtime.sh exit 0; npm ci and builds from committed lockfiles"
+    },
+    {
+      "id": "mcp-smoke-zotero",
+      "result": "pass",
+      "detail": "Runtime MCP verified with 17 workbench tools"
+    },
+    {
+      "id": "mcp-smoke-database-browser",
+      "result": "pass",
+      "detail": "Database browser MCP verified with 7 tools"
+    },
+    {
+      "id": "mcp-smoke-fulltext",
+      "result": "pass",
+      "detail": "Fulltext MCP verified with 6 tools"
+    },
+    {
+      "id": "claude-marketplace-add",
+      "result": "pass",
+      "detail": "claude plugin marketplace add (isolated CLAUDE_CONFIG_DIR), marketplace 'ai4s-workbench' registered"
+    },
+    {
+      "id": "claude-plugin-install",
+      "result": "pass",
+      "detail": "claude plugin install ai4s-literature-workbench@ai4s-workbench: installed, enabled, version 0.1.0"
+    },
+    {
+      "id": "claude-component-inventory",
+      "result": "pass",
+      "detail": "claude plugin details resolves 3 skills (literature-research, literature-manager, literature-writing) and 3 MCP servers (ai4s-literature-zotero, ai4s-literature-database-browser, ai4s-literature-fulltext)"
+    },
+    {
+      "id": "codex-live-refresh",
+      "result": "pass",
+      "detail": "Live Codex environment reinstalled from 0.1.0+codex.20260725052017 cachebuster to 0.1.0"
+    }
+  ],
+  "notCovered": [
+    "Zotero live checklist (requires non-production test library and credentials)",
+    "Windows PowerShell 5.1/7 clean-install acceptance",
+    "WoS campus-network live acceptance gates 2-4"
+  ],
+  "privacy": "Report contains only tool versions, check results, and artifact paths. It records no API keys, cookies, Zotero item contents, or browser profiles."
+}

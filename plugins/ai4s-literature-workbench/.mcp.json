@@ -1,0 +1,23 @@
+{
+  "mcpServers": {
+    "ai4s-literature-zotero": {
+      "command": "node",
+      "args": [
+        "./runtime/dist/index.js"
+      ],
+      "cwd": ".",
+      "env": {
+        "LITERATURE_ZOTERO_MCP_TOOL_PROFILE": "workbench",
+        "ZOTEUS_LOCAL": "auto",
+        "ZOTEUS_EMBEDDINGS": "off"
+      }
+    },
+    "ai4s-literature-fulltext": {
+      "command": "node",
+      "args": [
+        "./fulltext-runtime/dist/index.js"
+      ],
+      "cwd": "."
+    }
+  }
+}

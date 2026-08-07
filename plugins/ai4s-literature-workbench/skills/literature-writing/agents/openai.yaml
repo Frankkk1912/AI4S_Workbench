@@ -1,0 +1,4 @@
+interface:
+  display_name: "Literature Writing"
+  short_description: "Write evidence-traced reviews and backgrounds"
+  default_prompt: "Use $literature-writing to draft a review section from ranked evidence and Zotero sync metadata."

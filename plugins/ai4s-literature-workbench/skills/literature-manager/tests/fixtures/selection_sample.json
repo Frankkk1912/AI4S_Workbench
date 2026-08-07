@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "evidence_ids": [
+    "doi:10.1000/example.1",
+    "doi:10.1000/example.2"
+  ]
+}

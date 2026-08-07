@@ -1,0 +1,53 @@
+# Literature Zotero MCP hosted deploy: local build + Caddy.
+# Secrets come from a git-ignored .env in this directory (see .env.example).
+services:
+  literature-zotero-mcp:
+    build: .
+    image: literature-zotero-mcp:local
+    restart: unless-stopped
+    # Memory backstop for small (≈1 GB) free-tier VMs: cap the container so a runaway
+    # (e.g. parsing a huge PDF) is OOM-killed + auto-restarted by Docker instead of the
+    # host kernel thrashing/killing other processes. Raise on larger hosts. The primary
+    # guard is in-app (get_fulltext refuses precise re-extraction of oversized PDFs).
+    mem_limit: 900m
+    mem_reservation: 256m
+    env_file: .env
+    environment:
+      ZOTEUS_OAUTH_ENABLED: "true"
+      ZOTEUS_OAUTH_MODE: "${ZOTEUS_OAUTH_MODE:-passcode}"
+      ZOTEUS_OAUTH_STORE: "file"
+      ZOTEUS_DATA_DIR: "/data"
+      ZOTEUS_LOG_FORMAT: "json"
+      ZOTEUS_METRICS_ENABLED: "true"
+      PORT: "3939"
+      HOST: "0.0.0.0"
+    volumes:
+      - literature-zotero-mcp-data:/data
+    expose:
+      - "3939"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3939/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 30s
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [literature-zotero-mcp]
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      LITERATURE_ZOTERO_MCP_DOMAIN: "${LITERATURE_ZOTERO_MCP_DOMAIN}"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  literature-zotero-mcp-data:
+  caddy-data:
+  caddy-config:

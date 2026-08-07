@@ -1,0 +1,49 @@
+{
+  "dxt_version": "0.1",
+  "name": "literature-zotero-mcp",
+  "display_name": "Literature Zotero MCP",
+  "version": "0.1.0",
+  "description": "A Zotero MCP for evidence workflows with auditable, read-only duplicate candidate detection.",
+  "long_description": "Literature Zotero MCP provides Zotero Web API and desktop local API access for evidence workflows, including search, safe writes, citations, and read-only batch duplicate detection with persistent audit reports. Final duplicate merges remain in Zotero Desktop.",
+  "author": {
+    "name": "Frank AI4S Skill contributors",
+    "url": "https://github.com/Frankkk1912"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/Frankkk1912/AI4S_Workbench",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Frankkk1912/AI4S_Workbench"
+  },
+  "keywords": ["zotero", "mcp", "citations", "bibliography", "research", "reference-manager"],
+  "icon": "icon.png",
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": {
+        "ZOTERO_API_KEY": "${user_config.api_key}",
+        "ZOTEUS_LOCAL": "${user_config.local}"
+      }
+    }
+  },
+  "user_config": {
+    "api_key": {
+      "type": "string",
+      "title": "Zotero API Key",
+      "description": "Create one at https://www.zotero.org/settings/keys. Optional if you only read your local Zotero 7+ library, but required for writes, sync, and group libraries.",
+      "sensitive": true,
+      "required": false
+    },
+    "local": {
+      "type": "string",
+      "title": "Zotero local API",
+      "description": "Use the Zotero 7+ desktop local API for fast, key-free reads: auto | on | off.",
+      "default": "auto",
+      "required": false
+    }
+  },
+  "tools_generated": true
+}
