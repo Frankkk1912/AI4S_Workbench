@@ -1,11 +1,13 @@
 import importlib.util
 import sys
 import unittest
+from pathlib import Path
 
-SCRIPT = __file__.rsplit("/", 2)[0] + "/scripts/analyze_docking_complex.py"
+SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "analyze_docking_complex.py"
 SPEC = importlib.util.spec_from_file_location("analyze_docking_complex", SCRIPT)
+if SPEC is None or SPEC.loader is None:
+    raise RuntimeError("Unable to load analyze_docking_complex test module")
 MODULE = importlib.util.module_from_spec(SPEC)
-assert SPEC.loader is not None
 sys.modules[SPEC.name] = MODULE  # required for @dataclass type resolution
 SPEC.loader.exec_module(MODULE)
 
@@ -21,7 +23,7 @@ def make_atom(serial, name, resname, chain, resseq, element="C"):
         chain=chain,
         resseq=str(resseq),
         icode="",
-        x=float(serial),
+        x=serial * 1.0,
         y=0.0,
         z=0.0,
         element=element,

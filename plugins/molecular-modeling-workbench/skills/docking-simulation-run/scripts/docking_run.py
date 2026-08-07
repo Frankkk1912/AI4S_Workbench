@@ -7,6 +7,7 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -33,19 +34,37 @@ def read_json(path: Path) -> dict[str, Any]:
         raise DockingError(f"Cannot read {path}: {e}") from e
 
 
-def validate_environment_receipt(receipt: dict[str, Any], profile: str, engine: str) -> None:
-    if receipt.get("artifact_type") != "molecular_modeling_environment_receipt" or receipt.get("schema_version") != "1.1":
-        raise DockingError("Environment receipt schema is unsupported; rerun environment verify.")
+def validate_environment_receipt(
+    receipt: dict[str, Any], profile: str, engine: str
+) -> None:
+    if (
+        receipt.get("artifact_type") != "molecular_modeling_environment_receipt"
+        or receipt.get("schema_version") != "1.1"
+    ):
+        raise DockingError(
+            "Environment receipt schema is unsupported; rerun environment verify."
+        )
     if receipt.get("profile") != profile:
         raise DockingError("Environment receipt profile does not match --profile.")
-    if receipt.get("ready") is not True:
-        raise DockingError("Environment receipt is not ready; resolve its warnings before docking.")
+    ready = receipt.get("ready")
+    if not isinstance(ready, bool) or not ready:
+        raise DockingError(
+            "Environment receipt is not ready; resolve its warnings before docking."
+        )
     try:
-        created_at = dt.datetime.fromisoformat(receipt["created_at"].replace("Z", "+00:00"))
+        created_at = dt.datetime.fromisoformat(
+            receipt["created_at"].replace("Z", "+00:00")
+        )
     except (KeyError, TypeError, ValueError) as exc:
-        raise DockingError("Environment receipt has no valid created_at timestamp.") from exc
-    if dt.datetime.now(dt.timezone.utc) - created_at.astimezone(dt.timezone.utc) > dt.timedelta(days=7):
-        raise DockingError("Environment receipt is older than seven days; rerun environment verify.")
+        raise DockingError(
+            "Environment receipt has no valid created_at timestamp."
+        ) from exc
+    if dt.datetime.now(dt.timezone.utc) - created_at.astimezone(
+        dt.timezone.utc
+    ) > dt.timedelta(days=7):
+        raise DockingError(
+            "Environment receipt is older than seven days; rerun environment verify."
+        )
     tools = receipt.get("report", {}).get("tools", {})
     if engine and not tools.get(engine, {}).get("available"):
         raise DockingError(f"Environment receipt does not verify {engine}.")
@@ -64,11 +83,17 @@ def receipt_executable(receipt: dict[str, Any], engine: str) -> str:
         raise DockingError(f"Environment receipt does not verify {engine}.")
     executable = Path(raw_path)
     try:
-        valid = executable.is_absolute() and executable.is_file() and bool(executable.stat().st_mode & 0o111)
+        valid = (
+            executable.is_absolute()
+            and executable.is_file()
+            and os.access(executable, os.X_OK)
+        )
     except OSError:
         valid = False
     if not valid:
-        raise DockingError(f"Environment receipt does not contain a verified absolute executable path for {engine}; rerun environment verify.")
+        raise DockingError(
+            f"Environment receipt does not contain a verified absolute executable path for {engine}; rerun environment verify."
+        )
     return str(executable.resolve())
 
 
@@ -82,6 +107,13 @@ def parse_vector(value: str, name: str) -> list[float]:
     if name == "size" and any(v <= 0 for v in vals):
         raise DockingError(f"{name} must contain three positive numbers")
     return vals
+
+
+def optional_float(value: str | None) -> float | None:
+    try:
+        return float(value) if value is not None else None
+    except ValueError:
+        return None
 
 
 def engine_command(
@@ -180,17 +212,15 @@ def parse_poses_from_pdbqt(engine: str, path: Path) -> list[dict[str, Any]]:
                 continue
             poses.append(make_pose(engine, len(poses) + 1, score, path, "pdbqt_remark"))
         elif engine == "gnina" and poses and line.startswith("REMARK CNNscore"):
-            try:
-                poses[-1]["scores"]["gnina_cnn_score"] = float(line.split()[-1])
-            except ValueError:
-                pass
+            parts = line.split()
+            score = optional_float(parts[-1] if parts else None)
+            if score is not None:
+                poses[-1]["scores"]["gnina_cnn_score"] = score
         elif engine == "gnina" and poses and line.startswith("REMARK CNNaffinity"):
-            try:
-                poses[-1]["scores"]["gnina_cnn_affinity_kcal_mol"] = float(
-                    line.split()[-1]
-                )
-            except ValueError:
-                pass
+            parts = line.split()
+            affinity = optional_float(parts[-1] if parts else None)
+            if affinity is not None:
+                poses[-1]["scores"]["gnina_cnn_affinity_kcal_mol"] = affinity
     return poses
 
 
@@ -223,23 +253,31 @@ def parse_poses_from_log(engine: str, log_path: Path) -> list[dict[str, Any]]:
             match = _TABLE_ROW.match(line)
             if not match:
                 continue
-            affinity = float(match.group(2))
+            affinity = optional_float(match.group(2))
+            if affinity is None:
+                continue
             pose = make_pose(
                 engine, len(poses) + 1, affinity, log_path, "engine_log_table"
             )
             if engine == "gnina" and match.group(3) and match.group(4):
-                pose["scores"]["gnina_cnn_score"] = float(match.group(3))
-                pose["scores"]["gnina_cnn_affinity_kcal_mol"] = float(match.group(4))
+                cnn_score = optional_float(match.group(3))
+                cnn_affinity = optional_float(match.group(4))
+                if cnn_score is not None and cnn_affinity is not None:
+                    pose["scores"]["gnina_cnn_score"] = cnn_score
+                    pose["scores"]["gnina_cnn_affinity_kcal_mol"] = cnn_affinity
             poses.append(pose)
     if poses:
         return poses
     if engine == "gnina":
         # Last resort: per-pose "minimizedAffinity:" lines from verbose GNINA logs.
-        affinities = [
-            float(m.group(1))
-            for line in lines
-            if (m := _MINIMIZED_AFFINITY.search(line))
-        ]
+        affinities = []
+        for line in lines:
+            match = _MINIMIZED_AFFINITY.search(line)
+            if not match:
+                continue
+            affinity = optional_float(match.group(1))
+            if affinity is not None:
+                affinities.append(affinity)
         poses = [
             make_pose(engine, i + 1, score, log_path, "gnina_minimized_affinity")
             for i, score in enumerate(affinities)
@@ -256,7 +294,9 @@ def parse_scores(
     return poses
 
 
-def export_pose_coordinates(source: Path, poses: list[dict[str, Any]], output_dir: Path) -> None:
+def export_pose_coordinates(
+    source: Path, poses: list[dict[str, Any]], output_dir: Path
+) -> None:
     """Write one hash-bound PDBQT file per ranked pose.
 
     A docking output with multiple MODEL blocks is not a safe MD coordinate
@@ -282,12 +322,14 @@ def export_pose_coordinates(source: Path, poses: list[dict[str, Any]], output_di
         raise DockingError("Docking PDBQT has a MODEL block without ENDMDL.")
     if not models:
         if len(poses) != 1:
-            raise DockingError("Docking output has multiple ranked poses but no MODEL blocks.")
+            raise DockingError(
+                "Docking output has multiple ranked poses but no MODEL blocks."
+            )
         models = [text]
     if len(models) != len(poses):
         raise DockingError("Docking MODEL count does not match the ranked-pose count.")
     output_dir.mkdir(parents=True, exist_ok=True)
-    for index, (pose, model) in enumerate(zip(poses, models), start=1):
+    for index, (pose, model) in enumerate(zip(poses, models, strict=True), start=1):
         path = output_dir / f"pose_{index:03d}.pdbqt"
         path.write_text(model, encoding="utf-8")
         pose["coordinate_file"] = {
@@ -360,7 +402,9 @@ def main() -> None:
     sub = parser.add_subparsers(dest="cmd", required=True)
     run = sub.add_parser("run")
     run.add_argument("--backend", choices=("auto", "gnina", "vina"), required=True)
-    run.add_argument("--profile", choices=("wsl2-gpu", "linux-gpu", "cpu-fallback"), required=True)
+    run.add_argument(
+        "--profile", choices=("wsl2-gpu", "linux-gpu", "cpu-fallback"), required=True
+    )
     run.add_argument("--receptor", required=True)
     run.add_argument("--ligand", required=True)
     run.add_argument("--center", required=True)
@@ -394,7 +438,9 @@ def main() -> None:
         runs = []
         for engine in route:
             executable = receipt_executable(receipt, engine)
-            attempt = run_engine(engine, executable, args, center, size, args.output_dir)
+            attempt = run_engine(
+                engine, executable, args, center, size, args.output_dir
+            )
             runs.append(attempt)
             if attempt["status"] == "completed":
                 break
@@ -444,7 +490,7 @@ def main() -> None:
         )
     except DockingError as e:
         print(f"Error: {e}", file=sys.stderr)
-        raise SystemExit(1)
+        raise SystemExit(1) from e
     print(f"Success! Data written to: {args.output_dir / 'docking_manifest.json'}")
     if not successful:
         raise SystemExit(1)

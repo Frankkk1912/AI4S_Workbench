@@ -26,6 +26,36 @@ function runBash(args, options = {}) {
 	});
 }
 
+function simulateSupportedWsl2(t, bin) {
+	if (process.platform !== "linux") {
+		t.skip("Requires a Linux host to simulate the WSL2 filesystem contract");
+		return null;
+	}
+	const osReleasePath = "/etc/os-release";
+	if (!existsSync(osReleasePath)) {
+		t.skip("Host does not expose /etc/os-release for the WSL2 simulation");
+		return null;
+	}
+	const osRelease = readFileSync(osReleasePath, "utf8");
+	if (
+		!/^ID=ubuntu$/m.test(osRelease) ||
+		!/^VERSION_ID="22\.04"$/m.test(osRelease)
+	) {
+		t.skip("Requires Ubuntu 22.04 to simulate the supported WSL2 host");
+		return null;
+	}
+	const fakeUname = resolve(bin, "uname");
+	writeFileSync(
+		fakeUname,
+		"#!/bin/sh\nprintf '5.15.153.1-microsoft-standard-WSL2\\n'\n",
+	);
+	chmodSync(fakeUname, 0o755);
+	return {
+		PATH: `${bin}:${process.env.PATH}`,
+		WSL_DISTRO_NAME: "Ubuntu-22.04",
+	};
+}
+
 test("Windows preflight is a create-new, diagnostic-only handoff", () => {
 	assert.equal(existsSync(windowsEntrypoint), true);
 	const script = readFileSync(windowsEntrypoint, "utf8");
@@ -77,9 +107,10 @@ test("PowerShell parser and exact-distribution pure function contract pass when 
 		t.skip("PowerShell is unavailable on this test host");
 		return;
 	}
-	const executable = discover.stdout.trim();
+	const executable =
+		process.platform === "win32" ? "powershell.exe" : discover.stdout.trim();
 	let scriptPath = windowsEntrypoint;
-	if (executable.endsWith("powershell.exe")) {
+	if (executable.endsWith("powershell.exe") && process.platform !== "win32") {
 		const converted = spawnSync("wslpath", ["-w", windowsEntrypoint], {
 			encoding: "utf8",
 		});
@@ -144,7 +175,7 @@ test("WSL initializer rejects a non-WSL kernel before creating outputs", () => {
 	}
 });
 
-test("WSL initializer pins the plugin project from a foreign cwd and records onboarding failure", () => {
+test("WSL initializer pins the plugin project from a foreign cwd and records onboarding failure", (t) => {
 	const fixture = mkdtempSync(resolve(homedir(), ".ai4s-locked-project-test-"));
 	try {
 		const bin = resolve(fixture, "bin");
@@ -153,6 +184,8 @@ test("WSL initializer pins the plugin project from a foreign cwd and records onb
 		const environment = resolve(workspace, "environment evidence");
 		const capture = resolve(fixture, "uv-argv.txt");
 		mkdirSync(bin);
+		const wslSimulation = simulateSupportedWsl2(t, bin);
+		if (!wslSimulation) return;
 		const fakeUv = resolve(bin, "uv");
 		writeFileSync(
 			fakeUv,
@@ -174,9 +207,8 @@ test("WSL initializer pins the plugin project from a foreign cwd and records onb
 			{
 				cwd: fixture,
 				env: {
-					PATH: `${bin}:${process.env.PATH}`,
+					...wslSimulation,
 					AI4S_CAPTURE: capture,
-					WSL_DISTRO_NAME: "Ubuntu-22.04",
 				},
 			},
 		);
@@ -197,22 +229,22 @@ test("WSL initializer pins the plugin project from a foreign cwd and records onb
 	}
 });
 
-test("WSL initializer refuses existing output without clobbering it", () => {
+test("WSL initializer refuses existing output without clobbering it", (t) => {
 	const fixture = mkdtempSync(resolve(homedir(), ".ai4s-no-clobber-test-"));
 	try {
+		const bin = resolve(fixture, "bin");
+		mkdirSync(bin);
+		const wslSimulation = simulateSupportedWsl2(t, bin);
+		if (!wslSimulation) return;
 		const workspace = resolve(fixture, "workspace");
 		const output = resolve(workspace, "existing-output");
 		mkdirSync(output, { recursive: true });
 		const marker = resolve(output, "setup-summary.md");
 		writeFileSync(marker, "preserve me\n");
-		const result = runBash([
-			"--agent",
-			"claude",
-			"--workspace",
-			workspace,
-			"--output-dir",
-			output,
-		]);
+		const result = runBash(
+			["--agent", "claude", "--workspace", workspace, "--output-dir", output],
+			{ env: wslSimulation },
+		);
 		assert.equal(result.status, 2, result.stderr);
 		assert.match(
 			result.stderr,
@@ -224,22 +256,33 @@ test("WSL initializer refuses existing output without clobbering it", () => {
 	}
 });
 
-test("WSL initializer refuses symbolic-link targets and records an existing-environment failure", () => {
+test("WSL initializer refuses symbolic-link and junction targets without elevated Windows privileges", (t) => {
 	const fixture = mkdtempSync(resolve(homedir(), ".ai4s-symlink-test-"));
 	try {
+		const bin = resolve(fixture, "bin");
+		mkdirSync(bin);
+		const wslSimulation = simulateSupportedWsl2(t, bin);
+		if (!wslSimulation) return;
 		const workspace = resolve(fixture, "workspace");
 		const realOutput = resolve(workspace, "real-output");
 		const linkedOutput = resolve(workspace, "linked-output");
 		mkdirSync(realOutput, { recursive: true });
-		symlinkSync(realOutput, linkedOutput, "dir");
-		const linkedResult = runBash([
-			"--agent",
-			"codex",
-			"--workspace",
-			workspace,
-			"--output-dir",
+		symlinkSync(
+			realOutput,
 			linkedOutput,
-		]);
+			process.platform === "win32" ? "junction" : "dir",
+		);
+		const linkedResult = runBash(
+			[
+				"--agent",
+				"codex",
+				"--workspace",
+				workspace,
+				"--output-dir",
+				linkedOutput,
+			],
+			{ env: wslSimulation },
+		);
 		assert.equal(linkedResult.status, 2, linkedResult.stderr);
 		assert.match(
 			linkedResult.stderr,
@@ -249,16 +292,19 @@ test("WSL initializer refuses symbolic-link targets and records an existing-envi
 		const runOutput = resolve(workspace, "new-run-output");
 		const existingEnvironment = resolve(workspace, "existing-environment");
 		mkdirSync(existingEnvironment);
-		const environmentResult = runBash([
-			"--agent",
-			"claude",
-			"--workspace",
-			workspace,
-			"--output-dir",
-			runOutput,
-			"--environment-dir",
-			existingEnvironment,
-		]);
+		const environmentResult = runBash(
+			[
+				"--agent",
+				"claude",
+				"--workspace",
+				workspace,
+				"--output-dir",
+				runOutput,
+				"--environment-dir",
+				existingEnvironment,
+			],
+			{ env: wslSimulation },
+		);
 		assert.equal(environmentResult.status, 2, environmentResult.stderr);
 		assert.match(
 			environmentResult.stderr,
