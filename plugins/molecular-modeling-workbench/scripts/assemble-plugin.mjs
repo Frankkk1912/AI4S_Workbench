@@ -141,17 +141,30 @@ const generated = [
 	[resolve(pluginRoot, ".claude-plugin/plugin.json"), baseManifest],
 	[
 		resolve(repoRoot, ".claude-plugin/marketplace.json"),
-		() => ({
-			name: meta.marketplace.name,
-			owner: meta.marketplace.owner,
-			plugins: [
-				{
-					name: meta.name,
-					source: `./plugins/${meta.name}`,
-					description: meta.description,
-				},
-			],
-		}),
+		() => {
+			const marketplacePath = resolve(
+				repoRoot,
+				".claude-plugin/marketplace.json",
+			);
+			const current = existsSync(marketplacePath)
+				? readJson(marketplacePath, "marketplace.json")
+				: {};
+			const additionalPlugins = Array.isArray(current.plugins)
+				? current.plugins.filter((plugin) => plugin?.name !== meta.name)
+				: [];
+			return {
+				name: meta.marketplace.name,
+				owner: meta.marketplace.owner,
+				plugins: [
+					{
+						name: meta.name,
+						source: `./plugins/${meta.name}`,
+						description: meta.description,
+					},
+					...additionalPlugins,
+				],
+			};
+		},
 	],
 ];
 function renderManifest(render) {
