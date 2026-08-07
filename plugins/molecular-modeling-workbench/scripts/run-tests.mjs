@@ -12,15 +12,22 @@ const env = {
   UV_CACHE_DIR: process.env.UV_CACHE_DIR || resolve(cacheRoot, 'uv'),
   PYTHONPYCACHEPREFIX: process.env.PYTHONPYCACHEPREFIX || resolve(cacheRoot, 'pycache'),
 };
+const deferredPythonSuites = ['docking-visualization'];
+const includeDeferred = process.argv.includes('--include-deferred');
 const pythonSuites = [
   'molecular-modeling-environment',
   'docking-to-md-handoff',
   'docking-simulation-run',
   'docking-complex-analysis',
-  'docking-visualization',
+  ...(includeDeferred ? deferredPythonSuites : []),
   'ligand-parameterization',
   'md-simulation-run',
 ];
+if (!includeDeferred) {
+  process.stderr.write(
+    `Skipping deferred Python suites: ${deferredPythonSuites.join(', ')}. Run npm run test:all to include them.\n`,
+  );
+}
 const commands = [
   [process.execPath, ['--test', 'tests/*.test.mjs']],
   ...pythonSuites.map((skill) => ['uv', ['run', '--locked', 'python', '-m', 'unittest', 'discover', '-s', `skills/${skill}/tests`]]),

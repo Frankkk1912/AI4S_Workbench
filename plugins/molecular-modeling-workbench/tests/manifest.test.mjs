@@ -113,7 +113,13 @@ test("repository CI runs the locked CPU-only suite", () => {
 test("test runner is platform-neutral and preserves the locked Python contract", () => {
 	const pkg = JSON.parse(readFileSync(resolve(root, "package.json"), "utf8"));
 	assert.equal(pkg.scripts.test, "node scripts/run-tests.mjs");
+	assert.equal(
+		pkg.scripts["test:all"],
+		"node scripts/run-tests.mjs --include-deferred",
+	);
 	const runner = readFileSync(resolve(root, "scripts/run-tests.mjs"), "utf8");
+	assert.match(runner, /deferredPythonSuites/);
+	assert.match(runner, /--include-deferred/);
 	assert.match(runner, /--locked/);
 	assert.match(runner, /spawnSync/);
 	assert.doesNotMatch(runner, /bash -lc|PYTHONPYCACHEPREFIX=.*&&/);
