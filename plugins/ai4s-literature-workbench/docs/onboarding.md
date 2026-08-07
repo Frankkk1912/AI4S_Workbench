@@ -19,9 +19,9 @@ personal-library capabilities returned by Zotero.
 
 The credential wizard and MCP do **not** install Zotero Desktop add-ons. To
 show AI4S metrics, Agent Tags, AI Summary, and the interactive Priority column,
-build the separate `literature-metrics` add-on from a repository clone, then in
+build the separate `source/literature-metrics` add-on from a repository clone, then in
 Zotero Desktop choose **Tools → Add-ons → gear menu → Install Add-on From
-File…** and select `literature-metrics/dist/literature-metrics-<version>.xpi`.
+File…** and select `source/literature-metrics/dist/literature-metrics-<version>.xpi`.
 The redacted onboarding status reports this as `zotero_desktop_xpi`; the Agent
 must remind the user during first-run onboarding.
 

@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-07T10:09:38.599Z",
+  "generated_at": "2026-08-07T14:11:19.418Z",
   "source_root": "../..",
   "bundles": [
     {
@@ -18,14 +18,14 @@
       "sha256": "cd667c275c57bb2fdbd42a4c4afd4e7e1fe12c372248838e7f21dd7772b01a51"
     },
     {
-      "source": "literature-zotero-mcp",
+      "source": "plugins/ai4s-literature-workbench/source/literature-zotero-mcp",
       "destination": "runtime",
-      "sha256": "f79daf6ed4589d3650ee960f41cef4c0946e7161b604f97caa3b357c464e2657"
+      "sha256": "2af8c84cfc32f48368d17fbcb74af6917c0361a0db81cb51d88945f70620e9a6"
     },
     {
-      "source": "literature-fulltext-mcp",
+      "source": "plugins/ai4s-literature-workbench/source/literature-fulltext-mcp",
       "destination": "fulltext-runtime",
-      "sha256": "df58a92b49ce77a00a44ff384a0ac2fc034e2058bb5179e85f0cb7f2fb410f8f"
+      "sha256": "c5d3fe4b22356952ed224045d8a01880d197ae8e47cf908b3efb75644208c706"
     }
   ]
 }

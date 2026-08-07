@@ -6,7 +6,7 @@
 ## 0. 拓展功能 1–3 的当前缺口
 
 | 拓展功能 | 当前状态 | 本计划处理 |
-|---|---|---|
+| --- | --- | --- |
 | 1. 旧文献期刊信息回填 | 已有独立 metrics backfill plan/apply 路径 | 不改 |
 | 2. 领域文献更新 | 已有 project sync、增量去重和 Current Report Note 更新闭环 | 不改 |
 | 3. AI Tags、report、AI Summary | Agent Tags 与 Current Report 已实现；AI Summary 尚无字段契约和受控写入工具 | **补齐 AI Summary** |
@@ -57,7 +57,7 @@ Frank 给出的三个要求是：
 ## 3. Metadata 字段决策
 
 | 候选位置 | 决策 | 原因 |
-|---|---|---|
+| --- | --- | --- |
 | `abstractNote` | 不使用 | 会污染或覆盖出版方原始摘要，破坏证据来源 |
 | child Note | 不使用 | 它是独立内容对象，不是 item metadata；大量生成会污染条目树 |
 | `shortTitle`、`rights` 等标准字段 | 不使用 | 字段语义不匹配，会影响引用导出或与用户数据冲突 |
@@ -198,18 +198,21 @@ description: >-
 
 ## 7. 计划修改的源文件
 
-以下路径以仓库根目录为准；`plugins/ai4s-literature-workbench/skills` 和 `runtime` 是 assemble 后的 bundle，不应成为唯一 source of truth。
+以下路径以仓库根目录为准；`skills/literature-*` 是公开 skill source，
+`plugins/ai4s-literature-workbench/source` 是 MCP 与 Zotero add-on source；插件内的
+`skills`、`runtime` 和 `fulltext-runtime` 是 assemble 后的 bundle，不应成为唯一
+source of truth。
 
 ```text
-literature-manager/
+skills/literature-manager/
 ├── SKILL.md
 └── references/
     └── ai-summaries.md
 
-literature-writing/
+skills/literature-writing/
 └── references/writing-contract.md
 
-literature-zotero-mcp/
+plugins/ai4s-literature-workbench/source/literature-zotero-mcp/
 ├── src/features/ai-summaries/
 │   ├── contract.ts
 │   ├── context.ts
@@ -224,7 +227,7 @@ literature-zotero-mcp/
 └── tests/features/
     └── ai-summaries.test.ts
 
-literature-metrics/
+plugins/ai4s-literature-workbench/source/literature-metrics/
 ├── src/ai-summaries.js
 ├── src/literature-metrics.js
 ├── tests/ai-summaries.test.mjs
@@ -318,7 +321,7 @@ plugins/ai4s-literature-workbench/
 ## 11. 错误处理
 
 | 情况 | 默认处理 |
-|---|---|
+| --- | --- |
 | 用户没有显式要求 AI Summary | 不调用 context/apply，也不主动追问 |
 | collection 名称不唯一 | 停止，返回候选 collection 的精简信息 |
 | attachment/note/annotation | 跳过 `unsupported-item-type` |
@@ -388,9 +391,9 @@ plugins/ai4s-literature-workbench/
 ### 12.6 仓库验证
 
 ```bash
-cd literature-zotero-mcp && npm test && npm run build
-cd ../literature-metrics && npm test && npm run package
-cd ../plugins/ai4s-literature-workbench
+cd plugins/ai4s-literature-workbench/source/literature-zotero-mcp && npm test && npm run build
+cd plugins/ai4s-literature-workbench/source/literature-metrics && npm test && npm run package
+cd plugins/ai4s-literature-workbench
 node scripts/assemble-plugin.mjs sync
 node scripts/assemble-plugin.mjs check
 node scripts/verify-runtime.mjs

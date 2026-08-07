@@ -23,7 +23,7 @@ export const ZOTERO_XPI_ONBOARDING = {
 	status: "manual_install_required",
 	purpose:
 		"Display AI4S literature metrics, Agent Tags, AI Summary, and the interactive Priority control in Zotero Desktop.",
-	artifact: "literature-metrics/dist/literature-metrics-<version>.xpi",
+	artifact: "source/literature-metrics/dist/literature-metrics-<version>.xpi",
 	install:
 		"In Zotero Desktop, open Tools → Add-ons, choose the gear menu, then Install Add-on From File… and select the built XPI.",
 	note: "The credential wizard and MCP never install or modify Zotero Desktop add-ons automatically.",

@@ -12,9 +12,9 @@ and use GitHub Actions as the relevant verification gate.
 - `skills/` contains standalone public-safe skill sources. Each skill is
   entered through `skills/<name>/SKILL.md`.
 - `plugins/` contains repository-local distributable plugin bundles.
-- `literature-zotero-mcp/`, `literature-fulltext-mcp/`, and
-  `literature-metrics/` are source packages used by the in-development
-  literature plugin.
+- `plugins/ai4s-literature-workbench/source/` contains the source packages
+  used by the in-development literature plugin: the Zotero MCP, optional
+  Fulltext MCP, and Zotero Desktop metrics add-on.
 - `forge/`, private memory, credentials, and machine-local artifacts do not
   belong in this public repository.
 

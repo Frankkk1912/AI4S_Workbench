@@ -22,6 +22,14 @@ fulltext-runtime/.env.*
 !fulltext-runtime/.env.example
 fulltext-runtime/coverage/
 fulltext-runtime/*.tgz
+source/literature-fulltext-mcp/node_modules/
+source/literature-fulltext-mcp/dist/
+source/literature-fulltext-mcp/data/
+source/literature-fulltext-mcp/.env
+source/literature-fulltext-mcp/.env.*
+!source/literature-fulltext-mcp/.env.example
+source/literature-fulltext-mcp/coverage/
+source/literature-fulltext-mcp/*.tgz
 bootstrap-report*.json
 windows-acceptance*.json
 onboarding-result*.json

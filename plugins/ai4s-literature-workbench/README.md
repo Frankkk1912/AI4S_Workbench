@@ -13,8 +13,8 @@ AI4S Literature Workbench is composed of three coordinated layers:
    separate optional Fulltext MCP owns OA PDF verification and private
    handoffs; it cannot affect Zotero except through the separately controlled
    attachment-write step.
-3. **Zotero Desktop plugin** — the separate repository-root
-   `literature-metrics` XPI renders AI4S-managed metrics and labels and provides
+3. **Zotero Desktop plugin** — the separate
+   `source/literature-metrics` XPI renders AI4S-managed metrics and labels and provides
    an interactive, user-owned Priority star control.
 
 ## Installation
@@ -95,7 +95,7 @@ or put one in command arguments. See
 [`docs/onboarding.md`](docs/onboarding.md) for permissions, skip behavior, and
 individual reconfiguration commands. Zotero API onboarding does not install the
 separate Zotero Desktop XPI: build it from the repository clone, then install
-`literature-metrics/dist/literature-metrics-<version>.xpi` through **Tools →
+`source/literature-metrics/dist/literature-metrics-<version>.xpi` through **Tools →
 Add-ons → gear menu → Install Add-on From File…**. The first-run onboarding
 status and Agent prompt include this reminder.
 
@@ -175,7 +175,7 @@ existing values; `refresh` requires explicit regenerate/overwrite intent.
 
 ## Zotero Desktop metrics plugin
 
-`literature-metrics/` is deliberately independent of this Codex plugin: it is
+`source/literature-metrics/` is deliberately independent of this Codex plugin: it is
 installed into Zotero Desktop as an XPI, while the skills and MCP remain the
 agent-side workflow. Its metrics and Article Type columns are read-only and render `IF(YYYY)`,
 `5-Year IF(YYYY)`, `JCR(YYYY)`, `CAS(YYYY)`, `Journal Metrics`,
@@ -192,7 +192,7 @@ in the main item tree, `1/2/3` batch-set selected regular items and `0` clears;
 the item context menu exposes the same commands. Build it from a repository clone:
 
 ```text
-cd literature-metrics
+cd source/literature-metrics
 npm ci
 npm test
 npm run package
@@ -206,8 +206,9 @@ direct item write is a user's explicit Priority rating action.
 
 ## Maintaining the bundle
 
-In this repository, the three `skills/literature-*` directories and
-`literature-zotero-mcp/` are the source of truth for the Codex bundle. After
+In this repository, the three `skills/literature-*` directories remain the
+skill sources, while `source/literature-zotero-mcp/` and
+`source/literature-fulltext-mcp/` are the MCP source packages. After
 changing them, run:
 
 ```bash
@@ -218,7 +219,7 @@ node scripts/assemble-plugin.mjs check
 The plugin bundle is intentionally checked in so a clean checkout can bootstrap
 without relying on a private npm publication.
 
-`literature-metrics/` has its own manifest, validation, and XPI packaging; it
+`source/literature-metrics/` has its own manifest, validation, and XPI packaging; it
 is not assembled into the Codex plugin bundle.
 
 ## Optional journal metrics / JCR data

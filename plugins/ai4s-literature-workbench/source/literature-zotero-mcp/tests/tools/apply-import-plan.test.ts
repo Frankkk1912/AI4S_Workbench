@@ -143,8 +143,16 @@ describe('import plan contract', () => {
   it('validates the Python planner shared golden fixture', async () => {
     const fixtureName = join('tests', 'fixtures', 'import_plan_expected.json');
     const candidates = [
-      join(process.cwd(), '..', 'literature-manager', fixtureName),
-      join(process.cwd(), '..', 'skills', 'literature-manager', fixtureName),
+      join(
+        process.cwd(),
+        '..',
+        '..',
+        '..',
+        '..',
+        'skills',
+        'literature-manager',
+        fixtureName,
+      ),
     ];
     const fixture = candidates.find(existsSync);
     if (!fixture) throw new Error(`Missing shared import-plan fixture: ${candidates.join(', ')}`);

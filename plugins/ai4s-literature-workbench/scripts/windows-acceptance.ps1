@@ -8,6 +8,7 @@ $ErrorActionPreference = "Stop"
 
 $PluginRoot = Split-Path -Parent $PSScriptRoot
 $RepoRoot = [System.IO.Path]::GetFullPath((Join-Path $PluginRoot "..\.."))
+$SourceRoot = Join-Path $PluginRoot "source"
 $Checks = New-Object System.Collections.Generic.List[object]
 $Artifacts = [ordered]@{}
 
@@ -91,7 +92,7 @@ Invoke-Check -Name "bootstrap-all-runtimes" -Action {
 }
 
 Invoke-Check -Name "zotero-runtime-tests" -Action {
-    Invoke-InDirectory -Directory (Join-Path $RepoRoot "literature-zotero-mcp") -Action {
+    Invoke-InDirectory -Directory (Join-Path $SourceRoot "literature-zotero-mcp") -Action {
         Invoke-External -Command "npm" -Arguments @("ci")
         Invoke-External -Command "npm" -Arguments @("test")
         Invoke-External -Command "npm" -Arguments @("run", "typecheck")
@@ -99,7 +100,7 @@ Invoke-Check -Name "zotero-runtime-tests" -Action {
 }
 
 Invoke-Check -Name "fulltext-runtime-tests" -Action {
-    Invoke-InDirectory -Directory (Join-Path $RepoRoot "literature-fulltext-mcp") -Action {
+    Invoke-InDirectory -Directory (Join-Path $SourceRoot "literature-fulltext-mcp") -Action {
         Invoke-External -Command "npm" -Arguments @("ci")
         Invoke-External -Command "npm" -Arguments @("test")
         Invoke-External -Command "npm" -Arguments @("run", "typecheck")
@@ -108,8 +109,8 @@ Invoke-Check -Name "fulltext-runtime-tests" -Action {
 
 Invoke-Check -Name "python-skill-tests" -Action {
     Invoke-InDirectory -Directory $RepoRoot -Action {
-        Invoke-External -Command "uv" -Arguments @("run", "-m", "unittest", "discover", "-s", "literature-research/tests", "-p", "test_*.py")
-        Invoke-External -Command "uv" -Arguments @("run", "-m", "unittest", "discover", "-s", "literature-manager/tests", "-p", "test_*.py")
+        Invoke-External -Command "uv" -Arguments @("run", "-m", "unittest", "discover", "-s", "skills/literature-research/tests", "-p", "test_*.py")
+        Invoke-External -Command "uv" -Arguments @("run", "-m", "unittest", "discover", "-s", "skills/literature-manager/tests", "-p", "test_*.py")
     }
 }
 
@@ -120,7 +121,7 @@ Invoke-Check -Name "bundle-drift-check" -Action {
 }
 
 Invoke-Check -Name "literature-metrics-xpi" -Action {
-    $metricsRoot = Join-Path $RepoRoot "literature-metrics"
+    $metricsRoot = Join-Path $SourceRoot "literature-metrics"
     Invoke-InDirectory -Directory $metricsRoot -Action {
         Invoke-External -Command "npm" -Arguments @("ci")
         Invoke-External -Command "npm" -Arguments @("test")

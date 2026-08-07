@@ -21,7 +21,7 @@
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Frankkk1912/AI4S_Workbench.git",
-    "directory": "literature-zotero-mcp"
+    "directory": "plugins/ai4s-literature-workbench/source/literature-zotero-mcp"
   },
   "bin": {
     "literature-zotero-mcp": "dist/index.js"

@@ -72,7 +72,7 @@ test("redacted status detects keys without exposing values or hidden providers",
 	assert.equal(status.zotero_desktop_xpi.status, "manual_install_required");
 	assert.match(
 		status.zotero_desktop_xpi.artifact,
-		/^literature-metrics\/dist\/literature-metrics-.*\.xpi$/,
+		/^source\/literature-metrics\/dist\/literature-metrics-.*\.xpi$/,
 	);
 	assert.match(status.zotero_desktop_xpi.install, /Install Add-on From File/i);
 	for (const secret of Object.values(secrets))
