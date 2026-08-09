@@ -40,6 +40,11 @@ jobs:
             npm run check
             npm test
           )
+          (
+            cd plugins/literature-workbench/source/literature-zotero-mcp
+            npm ci
+          )
+          node plugins/literature-workbench/scripts/assemble-plugin.mjs sync
           node plugins/literature-workbench/scripts/assemble-plugin.mjs check
       - name: Package repository archive
         run: |
