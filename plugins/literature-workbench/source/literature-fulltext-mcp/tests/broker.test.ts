@@ -32,10 +32,12 @@ class FakeAdapter implements FulltextAdapter {
 }
 
 async function waitFor(broker: FulltextBroker, jobId: string, state: string): Promise<Record<string, any>> {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
+  // Windows CI can take longer than a half second to flush the asynchronous
+  // filesystem-backed state transition after a PDF parser import.
+  for (let attempt = 0; attempt < 300; attempt += 1) {
     const status = await broker.status(jobId);
     if (status.state === state) return status as Record<string, any>;
-    await new Promise((resolve) => setTimeout(resolve, 5));
+    await new Promise((resolve) => setTimeout(resolve, 10));
   }
   throw new Error(`Timed out waiting for ${jobId} to reach ${state}.`);
 }
