@@ -102,13 +102,13 @@ node scripts/onboard.mjs setup --output onboarding-result.json
 ### 1. 检索并排序证据
 
 ```text
-请检索 GPLD1 在心血管疾病中作用的 PubMed 文献，查询式为 `(GPLD1) AND (cardiovascular disease OR heart failure)`。最多获取 50 篇，排序前 30 篇，保留 search_plan.json、ranked_all.json、ranked_all.csv 和 report.md；标注仅摘要证据与预印本；并明确说明这次有上限的检索并非穷尽性检索。
+请检索 NLRP3 在心血管疾病中作用的 PubMed 文献，查询式为 `(NLRP3) AND (cardiovascular disease OR heart failure)`。最多获取 50 篇，排序前 30 篇，保留 search_plan.json、ranked_all.json、ranked_all.csv 和 report.md；标注仅摘要证据与预印本；并明确说明这次有上限的检索并非穷尽性检索。
 ```
 
 ### 2. 将审核后的证据同步到 Zotero
 
 ```text
-请使用我选定并经 EasyScholar 增强的排序证据和最终 report.md，把项目 `gpld1-cvd` 同步到 Zotero 集合 `GPLD1 cardiovascular disease`。如有歧义或大批量新建审查，请先展示给我；保留现有 Priority；随后生成受控英文 Agent Tags，并且只清理 Zotero 自动来源标签。同步完成后，我在此显式请求：只依据标题和摘要，为每篇文献生成一句中文 AI Summary；使用 missing 模式，不要覆盖当前 Summary。
+请使用我选定并经 EasyScholar 增强的排序证据和最终 report.md，把项目 `nlrp3-cvd` 同步到 Zotero 集合 `NLRP3 cardiovascular disease`。如有歧义或大批量新建审查，请先展示给我；保留现有 Priority；随后生成受控英文 Agent Tags，并且只清理 Zotero 自动来源标签。同步完成后，我在此显式请求：只依据标题和摘要，为每篇文献生成一句中文 AI Summary；使用 missing 模式，不要覆盖当前 Summary。
 ```
 
 ### 3. 获取经验证的公共 OA PDF
@@ -120,7 +120,7 @@ node scripts/onboard.mjs setup --output onboarding-result.json
 ### 4. 撰写证据可追溯正文
 
 ```text
-请依据已保存的 ranked_all.json 和 report.md，撰写 GPLD1 在心血管疾病中作用机制的双语综述章节。每个科学结论都添加 [EV:<index>] 占位符；区分直接证据、解释与开放问题；披露检索上限和全文状态；并提供参考文献审计表。不要仅依据 Agent Tags 或 AI Summary 推理。
+请依据已保存的 ranked_all.json 和 report.md，撰写 NLRP3 在心血管疾病中作用机制的双语综述章节。每个科学结论都添加 [EV:<index>] 占位符；区分直接证据、解释与开放问题；披露检索上限和全文状态；并提供参考文献审计表。不要仅依据 Agent Tags 或 AI Summary 推理。
 ```
 
 ## 可用 Skills

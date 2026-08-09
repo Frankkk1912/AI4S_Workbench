@@ -102,13 +102,13 @@ Relevant overrides are `ZOTERO_API_KEY`, `ZOTEUS_LOCAL=auto|on|off`, `LITERATURE
 ### 1. Retrieve and rank evidence
 
 ```text
-Search PubMed for the role of GPLD1 in cardiovascular disease using `(GPLD1) AND (cardiovascular disease OR heart failure)`. Cap retrieval at 50, rank the top 30, preserve search_plan.json, ranked_all.json, ranked_all.csv, and report.md, label abstract-only evidence and preprints, and state that the capped search is not exhaustive.
+Search PubMed for the role of NLRP3 in cardiovascular disease using `(NLRP3) AND (cardiovascular disease OR heart failure)`. Cap retrieval at 50, rank the top 30, preserve search_plan.json, ranked_all.json, ranked_all.csv, and report.md, label abstract-only evidence and preprints, and state that the capped search is not exhaustive.
 ```
 
 ### 2. Synchronize reviewed evidence to Zotero
 
 ```text
-Using my selected, EasyScholar-enriched ranked evidence and finalized report.md, sync project `gpld1-cvd` into the Zotero collection `GPLD1 cardiovascular disease`. Show me any ambiguity or large-create review before proceeding, preserve existing Priority, then generate controlled English Agent Tags and clean only Zotero automatic source tags. After sync, this is an explicit request to generate one Chinese AI Summary sentence per paper from title and abstract only; use missing mode and do not overwrite current summaries.
+Using my selected, EasyScholar-enriched ranked evidence and finalized report.md, sync project `nlrp3-cvd` into the Zotero collection `NLRP3 cardiovascular disease`. Show me any ambiguity or large-create review before proceeding, preserve existing Priority, then generate controlled English Agent Tags and clean only Zotero automatic source tags. After sync, this is an explicit request to generate one Chinese AI Summary sentence per paper from title and abstract only; use missing mode and do not overwrite current summaries.
 ```
 
 ### 3. Retrieve verified public-OA PDFs
@@ -120,7 +120,7 @@ For the exact Zotero parent items I selected, check fulltext context first. Fetc
 ### 4. Draft evidence-traced prose
 
 ```text
-From saved ranked_all.json and report.md, draft a bilingual review section on GPLD1 mechanisms in cardiovascular disease. Put an [EV:<index>] placeholder on every scientific claim, distinguish direct evidence from interpretation and open questions, disclose search caps and fulltext status, and include a reference-audit table. Do not reason from Agent Tags or AI Summary alone.
+From saved ranked_all.json and report.md, draft a bilingual review section on NLRP3 mechanisms in cardiovascular disease. Put an [EV:<index>] placeholder on every scientific claim, distinguish direct evidence from interpretation and open questions, disclose search caps and fulltext status, and include a reference-audit table. Do not reason from Agent Tags or AI Summary alone.
 ```
 
 ## Available Skills
