@@ -3,8 +3,8 @@
 ## Source of truth
 
 This public repository is the sole development and release source for the
-Molecular Modeling Workbench, the in-development AI4S Literature Workbench,
-and its public-safe reusable skills. Work on a branch, open a Draft PR early,
+Molecular Modeling Workbench, Literature Workbench, and its public-safe
+reusable skills. Work on a branch, open a Draft PR early,
 and use GitHub Actions as the relevant verification gate.
 
 ## Repository layout
@@ -12,9 +12,9 @@ and use GitHub Actions as the relevant verification gate.
 - `skills/` contains standalone public-safe skill sources. Each skill is
   entered through `skills/<name>/SKILL.md`.
 - `plugins/` contains repository-local distributable plugin bundles.
-- `plugins/ai4s-literature-workbench/source/` contains the source packages
-  used by the in-development literature plugin: the Zotero MCP, optional
-  Fulltext MCP, and Zotero Desktop metrics add-on.
+- `plugins/literature-workbench/source/` contains the source packages used by
+  Literature Workbench: the Zotero MCP, optional Fulltext MCP, and Zotero
+  Desktop metrics add-on.
 - `forge/`, private memory, credentials, and machine-local artifacts do not
   belong in this public repository.
 
@@ -34,13 +34,12 @@ npm test
 `npm test` intentionally excludes the deferred docking-visualization suite.
 Run `npm run test:all` when investigating that suite.
 
-## Literature Workbench workflow (in development)
+## Literature Workbench workflow
 
-The literature plugin lives at
-`plugins/ai4s-literature-workbench/`; its bundled skills, MCP runtimes, and
-Zotero Desktop add-on are retained for development and review. Follow its
-README and `v0.1.0-release-plan.md`; do not tag or release it until a separate
-acceptance decision promotes the Draft PR.
+Literature Workbench lives at `plugins/literature-workbench/`; its bundled
+skills, MCP runtimes, and Zotero Desktop add-on are release-ready. Follow its
+README and `v0.1.0-release-plan.md`; use macOS and Windows GitHub Actions as
+the merge and release verification gate.
 
 ## Safety
 

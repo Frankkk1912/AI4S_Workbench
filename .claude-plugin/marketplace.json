@@ -11,9 +11,9 @@
       "description": "Auditable WSL-native onboarding, molecular docking, visualization, and molecular dynamics workflows."
     },
     {
-      "name": "ai4s-literature-workbench",
-      "source": "./plugins/ai4s-literature-workbench",
-      "description": "In-development auditable literature retrieval, Zotero, MCP, and evidence-writing workflows."
+      "name": "literature-workbench",
+      "source": "./plugins/literature-workbench",
+      "description": "Release-ready auditable literature retrieval, Zotero, MCP, and evidence-writing workflows."
     }
   ]
 }

@@ -10,9 +10,9 @@ configuration are not included.
 
 - [`molecular-modeling-workbench`](plugins/molecular-modeling-workbench/) —
   auditable docking-to-MD workflows for a WSL2-first public beta.
-- [`ai4s-literature-workbench`](plugins/ai4s-literature-workbench/) —
-  in-development literature retrieval, Zotero, MCP, and evidence-writing
-  workflows; not release-ready yet.
+- [`literature-workbench`](plugins/literature-workbench/) —
+  release-ready literature retrieval, Zotero, MCP, and evidence-writing
+  workflows for macOS and native Windows.
 
 ## Reusable skills
 
@@ -31,8 +31,8 @@ detailed README; Windows desktop clients are not scientific command executors.
 
 The molecular-modeling public plugin includes both `source-skills/` and its
 generated `skills/` bundle, so its sync, check, and test commands can run from
-a clean checkout. The AI4S Literature Workbench is present for development and
-review; it is not yet a release or installation gate.
+a clean checkout. Literature Workbench is publicly installable; its macOS and
+Windows CI contracts are the release verification gate.
 
 Scientific tools such as GNINA, Vina, GROMACS, ACPYPE, ChimeraX, and PyMOL are
 not downloaded automatically. WSL enablement, Docker, GPU drivers, privileged
