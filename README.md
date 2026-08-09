@@ -1,40 +1,71 @@
-# AI4S Workbench
+# AI4S Workbench v0.1.0
 
-Public, release-ready AI4S agent plugins and reusable skills maintained by
-[Frankkk1912](https://github.com/Frankkk1912). This repository intentionally
-contains only distributable workbenches and public-safe skills; private research
-data, personal memory, experimental staging content, and machine-specific
-configuration are not included.
+[AI4S Workbench v0.1.0](https://github.com/Frankkk1912/AI4S_Workbench/releases/tag/v0.1.0)
+is the first public repository release of reproducible AI-for-science agent
+workbenches and reusable skills. It contains only distributable, public-safe
+artifacts; private research data, credentials, personal memory, experimental
+staging, and machine-specific configuration are deliberately excluded.
 
-## Plugins
+## Included workbenches
 
-- [`molecular-modeling-workbench`](plugins/molecular-modeling-workbench/) —
-  auditable docking-to-MD workflows for a WSL2-first public beta.
-- [`literature-workbench`](plugins/literature-workbench/) —
-  release-ready literature retrieval, Zotero, MCP, and evidence-writing
-  workflows for macOS and native Windows.
+### Molecular Modeling Workbench
+
+[`plugins/molecular-modeling-workbench/`](plugins/molecular-modeling-workbench/)
+provides auditable WSL2-first docking-to-MD workflows. It guides Windows users
+through non-destructive preflight and hands scientific execution to Ubuntu WSL.
+
+### Literature Workbench
+
+[`plugins/literature-workbench/`](plugins/literature-workbench/) provides
+retrieval, controlled Zotero workflows, verified public-OA fulltext handoffs,
+and evidence-traced scientific writing. It supports native macOS and Windows;
+its bundled Zotero Desktop add-on is installed separately.
+
+Each workbench has its own README, installation instructions, scope boundaries,
+and verification commands. Choose the narrow workbench that matches the task.
+
+## Getting started
+
+```bash
+git clone https://github.com/Frankkk1912/AI4S_Workbench.git
+cd AI4S_Workbench
+```
+
+Then follow the selected workbench's README:
+
+- [Molecular Modeling Workbench](plugins/molecular-modeling-workbench/README.md)
+- [Literature Workbench](plugins/literature-workbench/README.md)
+
+Do not copy `node_modules`, generated `dist` files, credentials, or local
+configuration between machines or operating systems. Bootstrap each workbench
+natively and retain its documented verification receipt.
 
 ## Reusable skills
 
-Standalone, public-safe skill sources live in [`skills/`](skills/). Each
-`skills/<name>/SKILL.md` is the entry point for that skill. The private
-`frank_global_memory/` skill, repository-local plugins, and `forge/` staging
-area are intentionally not included here.
+Standalone public-safe skill sources are in [`skills/`](skills/). Every
+`skills/<name>/SKILL.md` is an entry point. Private-only skills and local Agent
+state are not part of this repository.
 
-## Quick start
+## Verification and releases
 
-Windows 11 newcomers can download a reviewed local copy and run the plugin's
-non-destructive PowerShell preflight. Scientific work then moves to a fresh
-Linux-side clone under Ubuntu 22.04 WSL2, where the WSL initializer creates the
-onboarding checklist and a Codex CLI or Claude Code handoff. Follow the plugin's
-detailed README; Windows desktop clients are not scientific command executors.
+The root version (`package.json` and `release-meta.json`) describes the **AI4S
+Workbench repository**. Its `vX.Y.Z` tags and GitHub Releases cover the entire
+repository archive, not individual plugins. Plugin versions remain in their
+own manifests and changelogs.
 
-The molecular-modeling public plugin includes both `source-skills/` and its
-generated `skills/` bundle, so its sync, check, and test commands can run from
-a clean checkout. Literature Workbench is publicly installable; its macOS and
-Windows CI contracts are the release verification gate.
+GitHub Actions are the release gate:
 
-Scientific tools such as GNINA, Vina, GROMACS, ACPYPE, ChimeraX, and PyMOL are
-not downloaded automatically. WSL enablement, Docker, GPU drivers, privileged
-changes, and Agent login remain explicit user handoffs. Run the environment
-audit and retain its verified receipt before starting a scientific workflow.
+- Molecular Modeling Workbench uses the Ubuntu CPU contract.
+- Literature Workbench uses macOS and Windows release contracts.
+- Root tags run repository release contracts and publish a repository archive.
+
+See [CHANGELOG.md](CHANGELOG.md) for repository releases and the individual
+workbench documentation for component-specific changes.
+
+## Safety boundaries
+
+Scientific tools and privileged system changes are never installed
+implicitly. WSL enablement, Docker, GPU drivers, proprietary software,
+credentials, browser logins, and Agent authentication remain explicit user
+handoffs. Before sharing research results, retain the relevant verified
+receipts and avoid placing private inputs or credentials in the repository.
