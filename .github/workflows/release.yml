@@ -1,4 +1,4 @@
-name: release
+name: AI4S Workbench release
 
 on:
   push:
@@ -13,7 +13,7 @@ defaults:
 
 jobs:
   build:
-    name: build ubuntu-22.04
+    name: build repository archive
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
@@ -23,32 +23,32 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.10"
-      # setup-uv v8.1.0
       - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b
         with:
           version: "0.11.16"
           enable-cache: true
-      - name: Verify release version
+      - name: Verify repository release version
         run: |
-          package=plugins/molecular-modeling-workbench/package.json
-          metadata=plugins/molecular-modeling-workbench/plugin-meta.json
-          version=$(node -p "require('./$package').version")
-          meta_version=$(node -p "require('./$metadata').version")
+          version=$(node -p "require('./package.json').version")
+          meta_version=$(node -p "require('./release-meta.json').version")
           test "$version" = "$meta_version"
           test "v$version" = "$GITHUB_REF_NAME"
-      - name: Run release contracts
-        working-directory: plugins/molecular-modeling-workbench
+      - name: Run repository release contracts
         run: |
-          npm run check
-          npm test
-      - name: Package plugin archive
+          (
+            cd plugins/molecular-modeling-workbench
+            npm run check
+            npm test
+          )
+          node plugins/literature-workbench/scripts/assemble-plugin.mjs check
+      - name: Package repository archive
         run: |
           mkdir -p artifact
-          archive="artifact/molecular-modeling-workbench-${GITHUB_REF_NAME}.zip"
+          archive="artifact/ai4s-workbench-${GITHUB_REF_NAME}.zip"
           git archive --format=zip \
-            --prefix="molecular-modeling-workbench/" \
+            --prefix="ai4s-workbench/" \
             --output="$archive" \
-            "$GITHUB_SHA" plugins/molecular-modeling-workbench
+            "$GITHUB_SHA"
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ github.ref_name }}-ubuntu-22.04
@@ -70,7 +70,7 @@ jobs:
           mapfile -d '' files < <(find artifacts -type f -name '*.zip' -print0)
           test "${#files[@]}" -gt 0
           tag="$GITHUB_REF_NAME"
-          args=(--generate-notes --title "$tag")
+          args=(--generate-notes --title "AI4S Workbench $tag")
           case "$tag" in
             *-*) args+=(--prerelease) ;;
           esac

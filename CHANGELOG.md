@@ -1,30 +1,14 @@
 # Changelog
 
-All notable changes are documented here.
+All notable AI4S Workbench repository releases are documented here.
 
-## Unreleased
+## [0.1.0] — 2026-08-09
 
-- Adds the public Literature Workbench v0.1.0 and renames its installation
-  slug and plugin directory from `ai4s-literature-workbench` to
-  `literature-workbench`.
-- Establishes public-repository development, Ubuntu CI, and tag-release gates.
+First public release of AI4S Workbench.
 
-## 0.2.0 — 2026-08-04
-
-- Adds a non-destructive Windows 11 preflight and a fail-closed Ubuntu 22.04
-  WSL2 initializer for newcomers.
-- Guides users to WSL-native Codex CLI or Claude Code while keeping Windows
-  desktop clients outside the scientific execution path.
-- Adds explicit diagnostics and handoffs for WSL, Docker, NVIDIA, Agent setup,
-  Linux-home workspaces, and the existing verified environment receipt.
-- Does not automate elevation, reboot, Docker/GPU drivers, proprietary tools,
-  credentials, or Agent authentication.
-
-## 0.1.0 — 2026-07-27
-
-- Initial WSL2-first public beta of Molecular Modeling Workbench.
-- Adds auditable docking, visualization, ligand parameterization, validated
-  docking-to-MD handoff, MD orchestration, analysis, and plotting skills.
-- Requires a verified environment receipt before scientific execution.
-- PLIP, native Windows execution, HPC scheduling, and multi-GPU workflows are
-  not supported in this release.
+- Includes the public Molecular Modeling Workbench and Literature Workbench
+  plugins, plus public-safe reusable skills.
+- Establishes repository-wide release metadata, cross-platform verification,
+  and GitHub release archives.
+- Root tags represent AI4S Workbench releases only; individual plugin versions
+  are maintained in their own manifests and changelogs.
