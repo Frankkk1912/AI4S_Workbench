@@ -51,7 +51,9 @@ the merge and release verification gate.
 
 ## Releases
 
-The plugin `package.json` is the release version source. Keep its version equal
-to `plugin-meta.json`, update `CHANGELOG.md`, then create `vX.Y.Z-beta.N`
-before a final `vX.Y.Z` tag. The release workflow verifies the tag, runs the
-Ubuntu contracts, and publishes a plugin archive.
+The root `package.json` is the AI4S Workbench release version source. Keep its
+version equal to `release-meta.json`, update the root `CHANGELOG.md`, then
+create `vX.Y.Z-beta.N` before a final `vX.Y.Z` tag. Root tags represent only
+AI4S Workbench releases; plugin versions remain in their own manifests and
+changelogs. The release workflow verifies the tag, runs repository contracts,
+and publishes a repository archive.

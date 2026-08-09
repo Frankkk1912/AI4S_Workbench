@@ -1,0 +1,11 @@
+{
+  "name": "ai4s-workbench",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Public AI4S agent plugins and reusable skills.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frankkk1912/AI4S_Workbench.git"
+  }
+}
