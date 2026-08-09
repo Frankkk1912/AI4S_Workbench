@@ -4,6 +4,9 @@ All notable changes are documented here.
 
 ## Unreleased
 
+- Adds the public Literature Workbench v0.1.0 and renames its installation
+  slug and plugin directory from `ai4s-literature-workbench` to
+  `literature-workbench`.
 - Establishes public-repository development, Ubuntu CI, and tag-release gates.
 
 ## 0.2.0 — 2026-08-04

@@ -9,6 +9,11 @@
       "name": "molecular-modeling-workbench",
       "source": "./plugins/molecular-modeling-workbench",
       "description": "Auditable WSL-native onboarding, molecular docking, visualization, and molecular dynamics workflows."
+    },
+    {
+      "name": "literature-workbench",
+      "source": "./plugins/literature-workbench",
+      "description": "Release-ready auditable literature retrieval, Zotero, MCP, and evidence-writing workflows."
     }
   ]
 }

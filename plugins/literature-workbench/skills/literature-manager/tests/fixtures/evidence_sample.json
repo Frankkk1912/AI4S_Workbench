@@ -1,0 +1,28 @@
+{
+  "records": [
+    {
+      "id": "EV1",
+      "source": "pubmed",
+      "title": "GPLD1 regulates cardiovascular aging through phospholipid remodeling",
+      "doi": "10.1000/example.1",
+      "pmid": "12345678",
+      "authors": ["Smith J", "Zhang W"],
+      "journal": "Journal of Cardiovascular Research",
+      "article_types": ["Journal Article"],
+      "date": "2024",
+      "score": 91,
+      "conclusion": "GPLD1 was associated with age-linked cardiovascular remodeling in the tested model."
+    },
+    {
+      "id": "EV2",
+      "source": "pubmed",
+      "title": "Unrelated metabolism study",
+      "doi": "10.1000/example.2",
+      "authors": ["Doe A"],
+      "journal": "Metabolism Research",
+      "article_types": ["Journal Article"],
+      "date": "2022",
+      "score": 44
+    }
+  ]
+}

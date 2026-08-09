@@ -1,0 +1,29 @@
+{
+  "items": [
+    {
+      "key": "AAAA1111",
+      "version": 3,
+      "itemType": "journalArticle",
+      "title": "GPLD1 regulates cardiovascular aging through phospholipid remodeling",
+      "DOI": "10.1000/example.1",
+      "PMID": "12345678",
+      "date": "2024",
+      "tags": [
+        {
+          "tag": "existing"
+        }
+      ],
+      "collections": [
+        "OLD123"
+      ]
+    },
+    {
+      "key": "BBBB2222",
+      "version": 1,
+      "itemType": "journalArticle",
+      "title": "GPLD1 regulates cardiovascular aging through phospholipid remodeling",
+      "DOI": "https://doi.org/10.1000/example.1",
+      "date": "2024"
+    }
+  ]
+}

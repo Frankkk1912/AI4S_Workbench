@@ -1,0 +1,31 @@
+{
+  "generated_at": "2026-08-09T04:16:51.370Z",
+  "source_root": "../..",
+  "bundles": [
+    {
+      "source": "skills/literature-research",
+      "destination": "skills/literature-research",
+      "sha256": "9a601fa740fe4d9433fe274f4168d8682bbbe3782246f8805cdd271ea1cd47a1"
+    },
+    {
+      "source": "skills/literature-manager",
+      "destination": "skills/literature-manager",
+      "sha256": "15c47fcdaf516e4da6ecef7e8d154433c73c48078c6344824f8df7aa0a26c660"
+    },
+    {
+      "source": "skills/literature-writing",
+      "destination": "skills/literature-writing",
+      "sha256": "bea67822a36aef8289e9f93baa06cb05aeb20ac1b73f440702cf6b84c9797faa"
+    },
+    {
+      "source": "plugins/literature-workbench/source/literature-zotero-mcp",
+      "destination": "runtime",
+      "sha256": "3320593665dc0cb2ea7134ca6793bcdb8dcf3c2cec412ee5a10f7921b7165735"
+    },
+    {
+      "source": "plugins/literature-workbench/source/literature-fulltext-mcp",
+      "destination": "fulltext-runtime",
+      "sha256": "e959e07e4243a9e1fc37202ad95275330713953d773c39c11e582e7112eeae1c"
+    }
+  ]
+}

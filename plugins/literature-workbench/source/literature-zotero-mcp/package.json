@@ -1,0 +1,79 @@
+{
+  "name": "literature-zotero-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "An evidence-workflow Zotero MCP with auditable, read-only duplicate candidate detection.",
+  "keywords": [
+    "zotero",
+    "mcp",
+    "model-context-protocol",
+    "mcp-server",
+    "claude",
+    "citations",
+    "bibliography",
+    "reference-manager",
+    "zotero-api"
+  ],
+  "type": "module",
+  "license": "MIT",
+  "author": "Frank AI4S Skill contributors",
+  "homepage": "https://github.com/Frankkk1912/AI4S_Workbench",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Frankkk1912/AI4S_Workbench.git",
+    "directory": "plugins/literature-workbench/source/literature-zotero-mcp"
+  },
+  "bin": {
+    "literature-zotero-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "licenses"
+  ],
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint . --ext .ts",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "zotero:configure": "node scripts/zotero-configure.mjs",
+    "gen:codex": "tsx scripts/generate-codex.ts",
+    "inspector": "npx @modelcontextprotocol/inspector npx tsx src/index.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "mcpName": "io.github.frankkk1912/literature-zotero-mcp",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "citeproc": "^2.4.63",
+    "cors": "^2.8.6",
+    "express": "^5.2.1",
+    "express-rate-limit": "^8.5.2",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/node": "^22.10.0",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^8.57.1",
+    "pkce-challenge": "^5.0.1",
+    "prettier": "^3.4.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "optionalDependencies": {
+    "pdfjs-dist": "^5.6.205"
+  }
+}

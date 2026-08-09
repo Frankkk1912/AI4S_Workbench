@@ -1,0 +1,43 @@
+# Dependencies
+node_modules/
+.pnp.*
+.yarn/*
+
+# Build output
+dist/
+build/
+*.tsbuildinfo
+
+# Test / coverage
+coverage/
+.nyc_output/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+# mcp-publisher login credentials (registry/github tokens) — never commit
+.mcpregistry_*
+
+# Literature Zotero MCP runtime data (semantic index, caches, reports)
+.zoteus/
+.literature-zotero-mcp/
+data/
+*.sqlite
+*.sqlite-*
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Internal planning artifacts (superpowers specs/plans/handoff briefs) — kept local, not published
+docs/superpowers/
