@@ -36,9 +36,7 @@ export function verifyPlugin() {
 		throw new Error("Missing .claude-plugin/plugin.json; run npm run sync.");
 	const claude = JSON.parse(readFileSync(claudeManifestPath, "utf8"));
 	if (claude.name !== manifest.name)
-		throw new Error(
-			"Claude plugin manifest name must match the codex manifest.",
-		);
+		throw new Error("Claude plugin manifest name must match the codex manifest.");
 	if (claude.version !== manifest.version)
 		throw new Error(
 			"Claude plugin manifest version must match the codex manifest.",
@@ -59,9 +57,13 @@ export function verifyPlugin() {
 	)
 		throw new Error("Runtime contract schema is invalid.");
 	if (
-		runtimeContract.onboarding?.windows_host !== "Windows 11" ||
-		runtimeContract.onboarding?.wsl_distribution !== "Ubuntu-22.04" ||
-		runtimeContract.onboarding?.scientific_execution !== "wsl-native-only"
+		runtimeContract.onboarding?.windows_wsl?.windows_host !== "Windows 11" ||
+		runtimeContract.onboarding?.windows_wsl?.wsl_distribution !==
+			"Ubuntu-22.04" ||
+		runtimeContract.onboarding?.scientific_execution !==
+			"native-linux-or-wsl-native" ||
+		!runtimeContract.onboarding?.supported_gpu_profiles?.includes("linux-gpu") ||
+		!runtimeContract.onboarding?.supported_gpu_profiles?.includes("wsl2-gpu")
 	)
 		throw new Error("Windows-to-WSL onboarding contract is invalid.");
 	for (const path of [
@@ -80,6 +82,5 @@ export function verifyPlugin() {
 }
 
 const isMain =
-	process.argv[1] &&
-	resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+	process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (isMain) process.stdout.write(`${verifyPlugin()}\n`);

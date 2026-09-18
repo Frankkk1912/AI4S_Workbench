@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Create auditable plans and reviewed protein records for ligand MD assembly."""
+
 from __future__ import annotations
 
 import argparse
@@ -41,7 +42,11 @@ def reference(path: Path) -> dict[str, str]:
 
 
 def verify_reference(value: Any, label: str) -> dict[str, str]:
-    if not isinstance(value, dict) or not isinstance(value.get("path"), str) or not isinstance(value.get("sha256"), str):
+    if (
+        not isinstance(value, dict)
+        or not isinstance(value.get("path"), str)
+        or not isinstance(value.get("sha256"), str)
+    ):
         raise PreparationError(f"{label} reference is incomplete.")
     actual = reference(Path(value["path"]))
     if actual["sha256"] != value["sha256"]:
@@ -51,59 +56,110 @@ def verify_reference(value: Any, label: str) -> dict[str, str]:
 
 def payload_hash(data: dict[str, Any], key: str) -> str:
     payload = {name: value for name, value in data.items() if name != key}
-    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")).hexdigest()
+    return hashlib.sha256(
+        json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
 
 
 def validate_receipt(path: Path) -> dict[str, str]:
     receipt = load(path)
-    if receipt.get("schema_version") != "1.1" or receipt.get("artifact_type") != "molecular_modeling_environment_receipt":
+    if (
+        receipt.get("schema_version") != "1.1"
+        or receipt.get("artifact_type") != "molecular_modeling_environment_receipt"
+    ):
         raise PreparationError("Environment receipt schema is unsupported.")
-    if receipt.get("profile") != "wsl2-gpu" or receipt.get("ready") is not True:
-        raise PreparationError("Preparation requires a ready wsl2-gpu environment receipt.")
+    if (
+        receipt.get("profile") not in {"wsl2-gpu", "linux-gpu"}
+        or receipt.get("ready") is not True
+    ):
+        raise PreparationError(
+            "Preparation requires a ready wsl2-gpu or linux-gpu environment receipt."
+        )
     try:
-        created = dt.datetime.fromisoformat(str(receipt["created_at"]).replace("Z", "+00:00"))
+        created = dt.datetime.fromisoformat(
+            str(receipt["created_at"]).replace("Z", "+00:00")
+        )
     except (KeyError, TypeError, ValueError) as exc:
-        raise PreparationError("Environment receipt has no valid created_at timestamp.") from exc
-    if dt.datetime.now(dt.timezone.utc) - created.astimezone(dt.timezone.utc) > dt.timedelta(days=7):
+        raise PreparationError(
+            "Environment receipt has no valid created_at timestamp."
+        ) from exc
+    if dt.datetime.now(dt.timezone.utc) - created.astimezone(
+        dt.timezone.utc
+    ) > dt.timedelta(days=7):
         raise PreparationError("Environment receipt is older than seven days.")
     container = receipt.get("report", {}).get("gromacs_container", {})
-    if not isinstance(container, dict) or container.get("available") is not True or not isinstance(container.get("digest"), str) or "@sha256:" not in container["digest"]:
-        raise PreparationError("Environment receipt lacks a verified GROMACS container digest.")
+    if (
+        not isinstance(container, dict)
+        or container.get("available") is not True
+        or not isinstance(container.get("digest"), str)
+        or "@sha256:" not in container["digest"]
+    ):
+        raise PreparationError(
+            "Environment receipt lacks a verified GROMACS container digest."
+        )
     return reference(path)
 
 
 def validate_termini(path: Path) -> dict[str, str]:
     data = load(path)
     chains = data.get("chains")
-    if data.get("artifact_type") != "protein_termini_record" or data.get("schema_version") != "1.0" or not isinstance(chains, list) or not chains:
+    if (
+        data.get("artifact_type") != "protein_termini_record"
+        or data.get("schema_version") != "1.0"
+        or not isinstance(chains, list)
+        or not chains
+    ):
         raise PreparationError("Terminal-state record is invalid.")
     for chain in chains:
-        if not isinstance(chain, dict) or not all(isinstance(chain.get(key), str) and chain[key].strip() for key in ("chain_id", "n_terminus", "c_terminus")):
-            raise PreparationError("Terminal-state record requires nonempty chain_id, n_terminus, and c_terminus values.")
+        if not isinstance(chain, dict) or not all(
+            isinstance(chain.get(key), str) and chain[key].strip()
+            for key in ("chain_id", "n_terminus", "c_terminus")
+        ):
+            raise PreparationError(
+                "Terminal-state record requires nonempty chain_id, n_terminus, and c_terminus values."
+            )
     return reference(path)
 
 
 def validate_handoff(path: Path) -> tuple[dict[str, Any], dict[str, dict[str, str]]]:
     handoff = load(path)
-    if handoff.get("artifact_type") != "docking_to_md_handoff" or handoff.get("system_type") != "protein-ligand" or handoff.get("validation", {}).get("status") != "validated":
+    if (
+        handoff.get("artifact_type") != "docking_to_md_handoff"
+        or handoff.get("system_type") != "protein-ligand"
+        or handoff.get("validation", {}).get("status") != "validated"
+    ):
         raise PreparationError("A validated protein-ligand MD handoff is required.")
     ligand = handoff.get("ligand", {})
-    if ligand.get("validation", {}).get("status") != "validated" or ligand.get("force_field") != "amber-gaff" or not str(ligand.get("protein_force_field", "")).lower().startswith("amber"):
-        raise PreparationError("Preparation supports only validated amber-gaff ligand with an AMBER-family protein force field.")
+    if (
+        ligand.get("validation", {}).get("status") != "validated"
+        or ligand.get("force_field") != "amber-gaff"
+        or not str(ligand.get("protein_force_field", "")).lower().startswith("amber")
+    ):
+        raise PreparationError(
+            "Preparation supports only validated amber-gaff ligand with an AMBER-family protein force field."
+        )
     refs = {
         "handoff": reference(path),
-        "selected_pose": verify_reference(handoff.get("selection", {}).get("coordinates"), "selected pose"),
+        "selected_pose": verify_reference(
+            handoff.get("selection", {}).get("coordinates"), "selected pose"
+        ),
         "ligand_topology": verify_reference(ligand.get("topology"), "ligand topology"),
-        "ligand_coordinates": verify_reference(ligand.get("coordinates"), "ligand coordinates"),
+        "ligand_coordinates": verify_reference(
+            ligand.get("coordinates"), "ligand coordinates"
+        ),
     }
     return handoff, refs
 
 
 def build_plan(args: argparse.Namespace) -> dict[str, Any]:
     if args.water_model != "tip3p" or args.box_shape != "dodecahedron":
-        raise PreparationError("v0.1 preparation supports only tip3p water in a dodecahedron box.")
+        raise PreparationError(
+            "v0.1 preparation supports only tip3p water in a dodecahedron box."
+        )
     if not 0 < args.box_distance_nm <= 2.0:
-        raise PreparationError("--box-distance-nm must be greater than 0 and no more than 2.0.")
+        raise PreparationError(
+            "--box-distance-nm must be greater than 0 and no more than 2.0."
+        )
     if not 0 <= args.salt_molar <= 1.0:
         raise PreparationError("--salt-molar must be between 0 and 1.0.")
     handoff, inputs = validate_handoff(args.handoff)
@@ -115,9 +171,20 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
         "artifact_type": "protein_ligand_system_preparation_plan",
         "created_at": now(),
         "inputs": inputs,
-        "force_fields": {"protein": handoff["ligand"]["protein_force_field"], "ligand": handoff["ligand"]["force_field"]},
-        "parameters": {"water_model": args.water_model, "box_shape": args.box_shape, "box_distance_nm": args.box_distance_nm, "salt_molar": args.salt_molar},
-        "execution": {"status": "awaiting_reviewed_protein_preparation", "policy": "No free-form shell commands; assembly is deferred to a later plan-derived command stage."},
+        "force_fields": {
+            "protein": handoff["ligand"]["protein_force_field"],
+            "ligand": handoff["ligand"]["force_field"],
+        },
+        "parameters": {
+            "water_model": args.water_model,
+            "box_shape": args.box_shape,
+            "box_distance_nm": args.box_distance_nm,
+            "salt_molar": args.salt_molar,
+        },
+        "execution": {
+            "status": "awaiting_reviewed_protein_preparation",
+            "policy": "No free-form shell commands; assembly is deferred to a later plan-derived command stage.",
+        },
     }
     plan["plan_sha256"] = payload_hash(plan, "plan_sha256")
     return plan
@@ -125,12 +192,26 @@ def build_plan(args: argparse.Namespace) -> dict[str, Any]:
 
 def read_plan(path: Path) -> dict[str, Any]:
     plan = load(path)
-    if plan.get("artifact_type") != "protein_ligand_system_preparation_plan" or plan.get("schema_version") != "1.0" or plan.get("plan_sha256") != payload_hash(plan, "plan_sha256"):
-        raise PreparationError("System preparation plan is invalid or has been modified.")
+    if (
+        plan.get("artifact_type") != "protein_ligand_system_preparation_plan"
+        or plan.get("schema_version") != "1.0"
+        or plan.get("plan_sha256") != payload_hash(plan, "plan_sha256")
+    ):
+        raise PreparationError(
+            "System preparation plan is invalid or has been modified."
+        )
     inputs = plan.get("inputs", {})
     if not isinstance(inputs, dict):
         raise PreparationError("System preparation plan inputs are missing.")
-    for label in ("handoff", "selected_pose", "ligand_topology", "ligand_coordinates", "environment_receipt", "receptor_pdb", "termini_record"):
+    for label in (
+        "handoff",
+        "selected_pose",
+        "ligand_topology",
+        "ligand_coordinates",
+        "environment_receipt",
+        "receptor_pdb",
+        "termini_record",
+    ):
         verify_reference(inputs.get(label), label.replace("_", " "))
     return plan
 

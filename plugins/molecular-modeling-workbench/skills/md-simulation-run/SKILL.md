@@ -1,13 +1,14 @@
 ---
 name: md-simulation-run
 description: >-
-  Molecular dynamics simulation guide and standard parameter sets for GROMACS on WSL2 using GPU acceleration (RTX 3080). Contains copy-pasteable standard mdp templates for 100 ns production runs and pdb2gmx multi-chain setup. This is Step 1 of the MD pipeline.
+  Molecular dynamics simulation guide and standard parameter sets for GROMACS on native Linux or WSL2 using NVIDIA GPU acceleration. Contains copy-pasteable standard mdp templates for 100 ns production runs and pdb2gmx multi-chain setup. This is Step 1 of the MD pipeline.
 ---
 
 # MD Simulation Runner (`md-simulation-run`)
 
 ## Overview
-This skill provides comprehensive instructions, constraints, and copy-pasteable configuration decks for conducting Molecular Dynamics (MD) simulations in a local **WSL2** environment utilizing **GPU acceleration (NVIDIA RTX 3080)**. 
+
+This skill provides comprehensive instructions, constraints, and copy-pasteable configuration decks for conducting Molecular Dynamics (MD) simulations with NVIDIA GPU acceleration on either **native Linux** (`linux-gpu`) or the supported **WSL2** environment (`wsl2-gpu`).
 
 ## Auditable Run Contract
 
@@ -16,20 +17,21 @@ Before preparing MD, create and validate `md_handoff.json` with
 manifest so a long run can be resumed without losing provenance:
 
 ```bash
-uv run scripts/md_run_cli.py plan-duration --profile wsl2-gpu \
+GPU_PROFILE=linux-gpu  # Use wsl2-gpu inside the supported WSL2 environment.
+uv run scripts/md_run_cli.py plan-duration --profile "$GPU_PROFILE" \
   --system-mass-kda 80 --atom-count 120000 --output md/duration_plan.json
 uv run scripts/md_run_cli.py prepare --handoff md_handoff.json \
   --environment-receipt environment_receipt.json --duration-plan md/duration_plan.json \
   --work-dir md --output md/md_run_manifest.json
 uv run scripts/md_run_cli.py plan-stage --stage em --deffnm em \
-  --profile wsl2-gpu --threads 8 --output md/em_stage_plan.json
+  --profile "$GPU_PROFILE" --threads 8 --output md/em_stage_plan.json
 # The assembly contract already created md/em.tpr.
 uv run scripts/md_run_cli.py run --manifest md/md_run_manifest.json \
   --stage-plan md/em_stage_plan.json --output md/md_run_manifest.json
 
 # After EM completes, review a separate, hash-bound NVT preprocessing plan.
 uv run scripts/md_run_cli.py plan-stage --stage nvt --deffnm nvt \
-  --profile wsl2-gpu --threads 8 --output md/nvt_stage_plan.json
+  --profile "$GPU_PROFILE" --threads 8 --output md/nvt_stage_plan.json
 uv run scripts/md_run_cli.py plan-grompp --manifest md/md_run_manifest.json \
   --stage-plan md/nvt_stage_plan.json --mdp md/nvt.mdp --topology md/topol.top \
   --reference md/em.gro --maxwarn 0 --output md/nvt_grompp_plan.json
@@ -124,7 +126,7 @@ uv run scripts/protein_ligand_assembly.py plan \
   --protein-preparation protein_preparation.json \
   --alignment-report ligand_pose_alignment.json \
   --ligand-topology BNZ_GMX.itp --ions-mdp ions.mdp --em-mdp em.mdp \
-  --work-dir composed --profile wsl2-gpu \
+  --work-dir composed --profile "$GPU_PROFILE" \
   --preion-maxwarn 0 --output system_assembly_plan.json
 
 uv run scripts/protein_ligand_assembly.py assemble \
@@ -147,23 +149,28 @@ use the generic stage runner as a substitute for a prepared system.
 ## Force Field Setup & PDB Preparation
 
 ### 1. Force Field Recommendation
-*   **Primary Recommendation**: **CHARMM36** (specifically `charmm36-jul2022.ff` or newer). Best suited for complex glycoproteins, membrane systems, and general protein complexes.
-*   **Fallback (Built-in)**: **AMBER99SB-ILDN** or **AMBER ff14SB**. Best for clean, standard soluble proteins without custom post-translational modifications (PTMs).
-*   **Linking Local Forcefield**: If using a custom folder, always symlink it to your GROMACS working directory so it is visible:
+
+- **Primary Recommendation**: **CHARMM36** (specifically `charmm36-jul2022.ff` or newer). Best suited for complex glycoproteins, membrane systems, and general protein complexes.
+- **Fallback (Built-in)**: **AMBER99SB-ILDN** or **AMBER ff14SB**. Best for clean, standard soluble proteins without custom post-translational modifications (PTMs).
+- **Linking Local Forcefield**: If using a custom folder, always symlink it to your GROMACS working directory so it is visible:
+
     ```bash
     # Link forcefield directory
     ln -s /path/to/shared/charmm36-jul2022.ff ./charmm36-jul2022.ff
     ```
 
 ### 1b. CRITICAL: Ligand Topology Verification
-*   **Missing Hydrogens Bug**: PDBs generated from docking software or online databases often strip non-polar (or even polar) hydrogens from ligands. If you run `acpype` or `sobtop` on a ligand missing hydrogens, the generated `.itp` topology will be completely invalid (missing critical steric clash parameters and dihedrals). This will cause the ligand to **collapse and crumple** into a tiny ball during the NVT/NPT/Production simulation.
-*   **Fix**: **ALWAYS** verify that the ligand has a chemically correct number of hydrogens added before generating `.itp` forcefield files. (e.g., use `obabel`, `ChimeraX addh`, or `Avogadro`). You MUST manually inspect the `[ atoms ]` block of the generated `.itp` to ensure hydrogens are present.
+
+- **Missing Hydrogens Bug**: PDBs generated from docking software or online databases often strip non-polar (or even polar) hydrogens from ligands. If you run `acpype` or `sobtop` on a ligand missing hydrogens, the generated `.itp` topology will be completely invalid (missing critical steric clash parameters and dihedrals). This will cause the ligand to **collapse and crumple** into a tiny ball during the NVT/NPT/Production simulation.
+- **Fix**: **ALWAYS** verify that the ligand has a chemically correct number of hydrogens added before generating `.itp` forcefield files. (e.g., use `obabel`, `ChimeraX addh`, or `Avogadro`). You MUST manually inspect the `[ atoms ]` block of the generated `.itp` to ensure hydrogens are present.
 
 ### 2. PDB Structure Cleaning
-*   **Signal Peptide Slicing**: When applicable, mature proteins must be stripped of signal peptides so that residue indices map to their biological mature states.
-*   **Explicit Terminal Selection (`-ter`)**: When running GROMACS `pdb2gmx` on multi-chain complexes, **always** specify `-ter` to explicitly configure the protonation state of each chain.
-    - **Why**: Prevents GROMACS's known `MET1` N-terminal patch bug (`atom C1 not found in building block 1MET`).
-    - **Command Pattern**:
+
+- **Signal Peptide Slicing**: When applicable, mature proteins must be stripped of signal peptides so that residue indices map to their biological mature states.
+- **Explicit Terminal Selection (`-ter`)**: When running GROMACS `pdb2gmx` on multi-chain complexes, **always** specify `-ter` to explicitly configure the protonation state of each chain.
+  - **Why**: Prevents GROMACS's known `MET1` N-terminal patch bug (`atom C1 not found in building block 1MET`).
+  - **Command Pattern**:
+
       ```bash
       # Provide selections to interactive prompts (e.g., NH3+ and COO-)
       echo -e "0\n0\n1\n0" | gmx pdb2gmx -f complex_mature.pdb -o complex.gro -water tip3p -ff charmm36-jul2022 -ignh -ter
@@ -176,6 +183,7 @@ use the generic stage runner as a substitute for a prepared system.
 These are the reference configurations to write into the `params/` directory prior to running simulations.
 
 ### 1. Energy Minimization (`em.mdp`)
+
 ```mdp
 ; Energy minimization parameter file
 integrator  = steep
@@ -192,6 +200,7 @@ pbc         = xyz
 ```
 
 ### 2. NVT Equilibration (`nvt.mdp` - 100 ps)
+
 ```mdp
 ; NVT equilibration at 310 K
 define      = -DPOSRES ; Position restraints for heavy atoms
@@ -223,6 +232,7 @@ gen_seed    = -1
 ```
 
 ### 3. NPT Equilibration (`npt.mdp` - 100 ps)
+
 ```mdp
 ; NPT equilibration at 310 K, 1 bar
 define      = -DPOSRES ; Position restraints
@@ -257,6 +267,7 @@ refcoord_scaling = com
 ```
 
 ### 4. Production MD (`md_prod_100ns.mdp` - Default 100 ns)
+
 ```mdp
 ; Production MD — 100 ns at 310 K, 1 bar
 integrator  = md
@@ -301,12 +312,15 @@ compressibility = 4.5e-5
 Because Molecular Dynamics simulations (especially `npt` and `md_prod`) are long-running tasks, the agent MUST follow these tracking and feedback protocols to avoid silent waiting and to keep the user informed.
 
 ### 1. Sequential Execution and Reactive Wakeup
-Do NOT combine all four MD steps (EM, NVT, NPT, Prod) into a single monolithic background command. If you do, it will be impossible to track intermediate failures. 
-*   Launch each step individually using the `run_command` tool.
-*   Once launched, allow the command to run in the background. The system will automatically wake you up when the step completes. You do NOT need to poll the `status` continuously.
-*   Check the completion status. Only proceed to the next step if the previous one succeeded.
+
+Do NOT combine all four MD steps (EM, NVT, NPT, Prod) into a single monolithic background command. If you do, it will be impossible to track intermediate failures.
+
+- Launch each step individually using the `run_command` tool.
+- Once launched, allow the command to run in the background. The system will automatically wake you up when the step completes. You do NOT need to poll the `status` continuously.
+- Check the completion status. Only proceed to the next step if the previous one succeeded.
 
 ### 2. User Progress Reporting (The Progress Bar)
+
 After launching production MD, parse the GROMACS log rather than assuming it is
 still healthy:
 
@@ -323,9 +337,10 @@ warning, not evidence that simulation is progressing.
 
 ---
 
-## Command Execution Pipeline (WSL2 + NVIDIA Docker)
+## Command Execution Pipeline (Native Linux or WSL2 + NVIDIA Docker)
 
 ### 1. Defining the Box, Solvating, and Adding Ions
+
 ```bash
 # Define box (dodecahedron, 1.2 nm buffer distance)
 gmx editconf -f complex.gro -o complex_box.gro -c -d 1.2 -bt dodecahedron
@@ -342,6 +357,7 @@ echo "SOL" | gmx genion -s ions.tpr -o complex_ions.gro -p topol.top \
 ```
 
 ### 2. Running Simulations with GPU Acceleration
+
 Use only the audited `plan-grompp` → `grompp` → `run` sequence shown in the
 Auditable Run Contract. Do not join preprocessing and simulation into shell
 text and do not invoke a mutable image tag directly. The environment receipt
@@ -361,11 +377,12 @@ rank and selects GPU nonbonded work for GPU profiles.
 
 ## Next Step: Handoff to Analysis Engine (CRITICAL)
 
-**STOP HERE.** The `md-simulation-run` skill concludes the moment `md_prod.xtc` and `md_prod.tpr` are successfully generated. 
+**STOP HERE.** The `md-simulation-run` skill concludes the moment `md_prod.xtc` and `md_prod.tpr` are successfully generated.
 
 You must **NEVER** run manual `gmx rms` or `gmx trjconv` commands or attempt to fix Periodic Boundary Conditions (PBC) manually. The downstream pipeline handles all of this automatically.
 
 ### Pipeline Handoff
+
 1. **Pass the Baton**: Immediately invoke the **`md-trajectory-analysis`** skill.
 2. Provide it with the raw trajectory files:
    - `--tpr md_prod.tpr`

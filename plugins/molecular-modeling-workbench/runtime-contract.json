@@ -7,13 +7,22 @@
     "policy": "All workbench Python execution uses uv with the committed lockfile."
   },
   "onboarding": {
-    "windows_host": "Windows 11",
-    "wsl_distribution": "Ubuntu-22.04",
-    "wsl_version": 2,
-    "windows_entrypoint": "scripts/Start-AI4S-Workbench.ps1",
-    "wsl_entrypoint": "scripts/setup-wsl-workbench.sh",
-    "scientific_execution": "wsl-native-only",
-    "workspace_policy": "Scientific projects and large calculation files must remain under the WSL Linux home filesystem, never /mnt/*."
+    "supported_gpu_profiles": ["linux-gpu", "wsl2-gpu"],
+    "native_linux": {
+      "host": "Linux with NVIDIA Container Toolkit",
+      "profile": "linux-gpu",
+      "entrypoint": "molecular-modeling-environment audit/verify"
+    },
+    "windows_wsl": {
+      "windows_host": "Windows 11",
+      "wsl_distribution": "Ubuntu-22.04",
+      "wsl_version": 2,
+      "windows_entrypoint": "scripts/Start-AI4S-Workbench.ps1",
+      "wsl_entrypoint": "scripts/setup-wsl-workbench.sh",
+      "profile": "wsl2-gpu"
+    },
+    "scientific_execution": "native-linux-or-wsl-native",
+    "workspace_policy": "Keep scientific projects and large calculation files on a native Linux filesystem; under WSL they must remain inside the WSL Linux home filesystem, never /mnt/*."
   },
   "external_tools": {
     "gnina": {"source": "manual user-space binary", "required_evidence": ["absolute_path", "version"]},
