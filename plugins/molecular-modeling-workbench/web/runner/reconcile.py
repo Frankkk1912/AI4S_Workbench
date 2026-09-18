@@ -173,6 +173,37 @@ def reconcile(
             )
             continue
 
+        if attempt["kind"] == "analysis":
+            # Native analysis subprocesses have no durable container identity
+            # that a restarted runner can safely adopt. Once an attempt exists,
+            # its outcome is undecidable after service restart, so fail closed
+            # and require explicit user approval before a new attempt (T1.7).
+            _set_status(
+                conn,
+                run_id,
+                "interrupted",
+                "runner restarted during native analysis; outcome requires review",
+            )
+            conn.execute(
+                "UPDATE analysis_sessions SET status = 'interrupted' WHERE run_id = ?",
+                (run_id,),
+            )
+            db.audit(
+                conn,
+                actor,
+                "analysis_interrupted",
+                subject=run_id,
+                detail=f"attempt_id={attempt['attempt_id']}",
+            )
+            summary.append(
+                {
+                    "run_id": run_id,
+                    "action": "interrupted",
+                    "reason": "native analysis cannot be reattached after runner restart",
+                }
+            )
+            continue
+
         containers = docker.find_by_label(RUN_ID_LABEL, run_id)
         matching = [c for c in containers if c.get("name") == attempt["container_name"]]
 

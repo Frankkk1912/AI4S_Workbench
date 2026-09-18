@@ -18,6 +18,13 @@ from pathlib import Path
 
 from . import db, mdcli
 
+# Task kinds: container-backed MD stages vs native (uv locked) analysis tasks.
+# Analysis reuses the same idempotency / lock / audit channels and the T1.7
+# interruption handling, but is executed locally (GROMACS containers are only
+# used for the scientific-computation path; analysis never re-runs MD).
+TASK_KINDS = ("container", "analysis")
+ANALYSIS_STAGE = "analysis"
+
 
 class SubmissionError(ValueError):
     """Raised when a submission must be refused (readable reason attached)."""
@@ -32,8 +39,24 @@ def submit_run(
     manifest_path: str | None = None,
     stage_plan_path: str | None = None,
     actor: str = "runner",
+    kind: str = "container",
 ) -> dict:
-    """Idempotent run submission keyed by request_id."""
+    """Idempotent run submission keyed by request_id.
+
+    ``kind`` selects the task type: ``container`` (MD stage) or ``analysis``
+    (native uv CLI). The ``analysis`` stage is reserved for analysis tasks, and
+    analysis tasks must use it, so the two task types can never collide in the
+    stage namespace while still sharing the same work_dir single-active lock.
+    """
+    if kind not in TASK_KINDS:
+        raise SubmissionError(f"unsupported task kind: {kind!r}")
+    if kind == "analysis" and stage != ANALYSIS_STAGE:
+        raise SubmissionError(f"analysis tasks must use stage {ANALYSIS_STAGE!r}")
+    if kind != "analysis" and stage == ANALYSIS_STAGE:
+        raise SubmissionError(
+            f"stage {ANALYSIS_STAGE!r} is reserved for analysis tasks"
+        )
+
     existing = conn.execute(
         "SELECT * FROM runs WHERE request_id = ?", (request_id,)
     ).fetchone()

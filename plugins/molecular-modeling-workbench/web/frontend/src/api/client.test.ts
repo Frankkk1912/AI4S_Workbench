@@ -58,6 +58,49 @@ describe("ApiClient operation mapping", () => {
     expect((calls[3].body as { kind: string }).kind).toBe("extension");
   });
 
+  it("maps analysis approval and gallery reads through the backend", async () => {
+    const { fn, calls } = mockFetch();
+    const api = new ApiClient("http://127.0.0.1:8765", "tok", fn);
+    await api.getAnalysisSessions("r1");
+    await api.approveAnalysis({
+      request_id: "analysis-1",
+      run_id: "r1",
+      source_kind: "completed",
+      source_stage: "md_prod",
+      group: "backbone",
+      fit_group: "protein",
+      eq_start_ns: 20,
+      style: {
+        colors: {},
+        font_family: "sans-serif",
+        font_size: 8,
+        fig_size: [6.8, 7.5],
+        style_schema_version: "1.0",
+      },
+    });
+    expect(calls[0].url).toContain("/analysis/runs/r1/sessions");
+    expect(calls[1].url).toContain("/analysis/sessions");
+    expect(calls[1].method).toBe("POST");
+    expect(calls[1].headers?.["X-AI4S-Request"]).toBe("1");
+    expect((calls[1].body as { source_kind: string }).source_kind).toBe(
+      "completed",
+    );
+
+    await api.restyleAnalysis("analysis-1", "redraw-1", {
+      colors: { system: "#123456" },
+      font_family: "serif",
+      font_size: 12,
+      fig_size: [10, 8],
+      style_schema_version: "1.0",
+    });
+    expect(calls[2].url).toContain("/analysis/sessions/analysis-1/style");
+    expect(calls[2].method).toBe("POST");
+    expect(calls[2].headers?.["X-AI4S-Request"]).toBe("1");
+    expect((calls[2].body as { request_id: string }).request_id).toBe(
+      "redraw-1",
+    );
+  });
+
   it("does not send the CSRF header on GET requests", async () => {
     const { fn, calls } = mockFetch();
     const api = new ApiClient("http://127.0.0.1:8765", "tok", fn);

@@ -76,6 +76,15 @@ CREATE TABLE IF NOT EXISTS receipt_lineage (
     verified_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS analysis_snapshots (
+    snapshot_id TEXT PRIMARY KEY,
+    run_id TEXT NOT NULL,
+    stage TEXT NOT NULL,
+    record_path TEXT NOT NULL,
+    record_sha256 TEXT NOT NULL,
+    created_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS analysis_sessions (
     session_id TEXT PRIMARY KEY,
     run_id TEXT,

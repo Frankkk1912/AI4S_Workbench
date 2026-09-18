@@ -1,7 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ApiClient } from "./api/client";
 import { nativeEventSourceFactory } from "./api/stream";
 import type {
+    AnalysisExportFormat,
+    AnalysisSession,
+    AnalysisStyle,
     Approval,
     ParamsDiff,
     ProgressData,
@@ -15,6 +18,7 @@ import { ErrorView } from "./components/ErrorView";
 import { ParamsReview } from "./components/ParamsReview";
 import { ApprovalPanel } from "./components/ApprovalPanel";
 import { RunControls } from "./components/RunControls";
+import { AnalysisGallery } from "./components/AnalysisGallery";
 
 const DEMO_STRATEGY: Strategy = {
     stages: ["em", "nvt", "npt", "md_prod"],
@@ -35,6 +39,12 @@ export default function App() {
     const [approval, setApproval] = useState<Approval | null>(null);
     const [params, setParams] = useState<ParamsDiff | null>(null);
     const [progress, setProgress] = useState<ProgressData | null>(null);
+    const [analysisSessions, setAnalysisSessions] = useState<AnalysisSession[]>(
+        [],
+    );
+    const [analysisPreviews, setAnalysisPreviews] = useState<
+        Record<string, string>
+    >({});
     const [error, setError] = useState<string | null>(null);
 
     const client = useMemo(
@@ -42,18 +52,44 @@ export default function App() {
         [baseUrl, token],
     );
 
+    useEffect(
+        () => () => {
+            for (const url of Object.values(analysisPreviews))
+                URL.revokeObjectURL(url);
+        },
+        [analysisPreviews],
+    );
+
+    const setSessionsAndPreviews = async (sessions: AnalysisSession[]) => {
+        const previews: Record<string, string> = {};
+        for (const session of sessions) {
+            if (session.exports.png) {
+                const blob = await client.downloadAnalysisExport(
+                    session.session_id,
+                    "png",
+                );
+                previews[session.session_id] = URL.createObjectURL(blob);
+            }
+        }
+        setAnalysisSessions(sessions);
+        setAnalysisPreviews(previews);
+    };
+
     const load = async () => {
         setError(null);
         try {
             localStorage.setItem("md-workbench-token", token);
-            const [runDoc, approvalDoc, paramsDoc] = await Promise.all([
-                client.getRun(runId),
-                client.getApproval(runId),
-                client.getParamsDiff({ stage: "md_prod" }),
-            ]);
+            const [runDoc, approvalDoc, paramsDoc, analysisDoc] =
+                await Promise.all([
+                    client.getRun(runId),
+                    client.getApproval(runId),
+                    client.getParamsDiff({ stage: "md_prod" }),
+                    client.getAnalysisSessions(runId),
+                ]);
             setRun(runDoc);
             setApproval(approvalDoc.approval);
             setParams(paramsDoc);
+            await setSessionsAndPreviews(analysisDoc.sessions);
         } catch (caught) {
             setError(caught instanceof Error ? caught.message : String(caught));
         }
@@ -156,6 +192,67 @@ export default function App() {
                     diagnosticsAvailable={
                         run.stage === "md_prod" && run.status === "completed"
                     }
+                />
+            )}
+
+            {run && (
+                <AnalysisGallery
+                    sessions={analysisSessions}
+                    previewUrls={analysisPreviews}
+                    canApprove={
+                        run.stage === "md_prod" && run.status === "completed"
+                    }
+                    onApprove={async () => {
+                        await client.approveAnalysis({
+                            request_id: `analysis-${runId}-${Date.now()}`,
+                            run_id: runId,
+                            source_kind: "completed",
+                            source_stage: "md_prod",
+                            group: "backbone",
+                            fit_group: "protein",
+                            begin_ps: null,
+                            end_ps: null,
+                            eq_start_ns: 20,
+                            style: {
+                                colors: {},
+                                font_family: "sans-serif",
+                                font_size: 8,
+                                fig_size: [6.8, 7.5],
+                                style_schema_version: "1.0",
+                            },
+                        });
+                        const refreshed =
+                            await client.getAnalysisSessions(runId);
+                        await setSessionsAndPreviews(refreshed.sessions);
+                    }}
+                    onRestyle={async (
+                        sessionId: string,
+                        style: AnalysisStyle,
+                    ) => {
+                        await client.restyleAnalysis(
+                            sessionId,
+                            `redraw-${sessionId}-${Date.now()}`,
+                            style,
+                        );
+                        const refreshed =
+                            await client.getAnalysisSessions(runId);
+                        await setSessionsAndPreviews(refreshed.sessions);
+                    }}
+                    onExport={async (
+                        sessionId: string,
+                        format: AnalysisExportFormat,
+                    ) => {
+                        const blob = await client.downloadAnalysisExport(
+                            sessionId,
+                            format,
+                        );
+                        const url = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.href = url;
+                        link.download = `${sessionId}.${format}`;
+                        link.click();
+                        URL.revokeObjectURL(url);
+                    }}
                 />
             )}
 

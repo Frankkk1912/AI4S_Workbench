@@ -105,5 +105,60 @@ class PreflightTests(unittest.TestCase):
         self.assertIn("preflight_docker", [r["event"] for r in rows])
 
 
+class AnalysisTaskSubmissionTests(unittest.TestCase):
+    """T5.5: analysis shares the same idempotency/lock/audit channels as MD."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        self.conn = helpers.make_db(self.root / "runner.db", boot_id="boot-A")
+
+    def tearDown(self) -> None:
+        self.conn.close()
+        self._tmp.cleanup()
+
+    def _submit(self, request_id, work_dir, stage, kind="container"):
+        return submission.submit_run(
+            self.conn, request_id, "project", stage, work_dir, kind=kind
+        )
+
+    def test_analysis_submission_is_idempotent(self) -> None:
+        first = self._submit("req-a", "/work", "analysis", kind="analysis")
+        second = self._submit("req-a", "/work", "analysis", kind="analysis")
+        self.assertTrue(first["created"])
+        self.assertFalse(second["created"])
+        self.assertEqual(first["run"]["run_id"], second["run"]["run_id"])
+        self.assertEqual(first["run"]["stage"], "analysis")
+
+    def test_analysis_stage_is_reserved(self) -> None:
+        with self.assertRaises(submission.SubmissionError):
+            self._submit("req-a", "/work", "analysis", kind="container")
+
+    def test_analysis_requires_analysis_stage(self) -> None:
+        with self.assertRaises(submission.SubmissionError):
+            self._submit("req-a", "/work", "em", kind="analysis")
+
+    def test_unsupported_kind_rejected(self) -> None:
+        with self.assertRaises(submission.SubmissionError):
+            self._submit("req-a", "/work", "em", kind="bogus")
+
+    def test_analysis_and_md_share_workdir_lock(self) -> None:
+        self._submit("req-md", "/work", "em", kind="container")
+        with self.assertRaises(submission.SubmissionError):
+            self._submit("req-analysis", "/work", "analysis", kind="analysis")
+
+    def test_analysis_attempt_records_analysis_kind(self) -> None:
+        run = self._submit("req-a", "/work", "analysis", kind="analysis")["run"]
+        attempt_id = submission.allocate_attempt(
+            self.conn, run["run_id"], "analysis", "/work", kind="analysis"
+        )
+        self.assertEqual(attempt_id, 1)
+        row = self.conn.execute(
+            "SELECT kind, stage FROM attempts WHERE run_id = ?", (run["run_id"],)
+        ).fetchone()
+        self.assertEqual(row["kind"], "analysis")
+        self.assertEqual(row["stage"], "analysis")
+
+
 if __name__ == "__main__":
     unittest.main()

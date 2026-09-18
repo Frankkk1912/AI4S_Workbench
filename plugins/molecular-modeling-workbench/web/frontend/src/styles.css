@@ -164,6 +164,55 @@ section {
   text-align: left;
 }
 
+.gallery-heading,
+.export-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.analysis-sessions {
+  list-style: none;
+  padding: 0;
+}
+
+.analysis-sessions li {
+  border-top: 1px solid #e5e7eb;
+  padding: 0.75rem 0;
+}
+
+.data-reference {
+  color: #57606a;
+  font-family: ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
+.analysis-preview {
+  display: block;
+  max-width: min(100%, 54rem);
+  margin: 0.75rem 0;
+  border: 1px solid #e5e7eb;
+}
+
+.style-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin: 0.75rem 0;
+}
+
+.style-controls label {
+  display: grid;
+  gap: 0.25rem;
+}
+
+.style-controls input[type="number"] {
+  width: 5rem;
+}
+
 .op {
   margin: 0.75rem 0;
   display: flex;

@@ -1,4 +1,7 @@
 import type {
+  AnalysisExportFormat,
+  AnalysisSession,
+  AnalysisStyle,
   Approval,
   ApprovalKind,
   ParamsDiff,
@@ -50,6 +53,20 @@ export interface RetryBody {
   reason: string;
   strategy: Strategy;
   receipt_path: string;
+}
+
+export interface CreateAnalysisBody {
+  request_id: string;
+  run_id: string;
+  source_kind: "completed" | "snapshot";
+  source_stage: string;
+  snapshot_id?: string;
+  group: string;
+  fit_group: string;
+  begin_ps?: number | null;
+  end_ps?: number | null;
+  eq_start_ns: number;
+  style: AnalysisStyle;
 }
 
 export type FetchLike = (
@@ -184,5 +201,45 @@ export class ApiClient {
   getReceiptStatus(receiptPath: string): Promise<ReceiptStatus> {
     const query = new URLSearchParams({ receipt_path: receiptPath }).toString();
     return this.request(`/params/receipt-status?${query}`);
+  }
+
+  getAnalysisSessions(
+    runId: string,
+  ): Promise<{ run_id: string; sessions: AnalysisSession[] }> {
+    return this.request(`/analysis/runs/${runId}/sessions`);
+  }
+
+  approveAnalysis(body: CreateAnalysisBody): Promise<AnalysisSession> {
+    return this.request("/analysis/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  }
+
+  restyleAnalysis(
+    sessionId: string,
+    requestId: string,
+    style: AnalysisStyle,
+  ): Promise<AnalysisSession> {
+    return this.request(`/analysis/sessions/${sessionId}/style`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ request_id: requestId, style }),
+    });
+  }
+
+  async downloadAnalysisExport(
+    sessionId: string,
+    format: AnalysisExportFormat,
+  ): Promise<Blob> {
+    const response = await this.fetchFn(
+      `${this.baseUrl}/analysis/sessions/${sessionId}/exports/${format}`,
+      { headers: { Authorization: `Bearer ${this.token}` } },
+    );
+    if (!response.ok) {
+      throw new ApiError(response.status, `HTTP ${response.status}`);
+    }
+    return response.blob();
   }
 }
