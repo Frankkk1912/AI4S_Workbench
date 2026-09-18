@@ -65,7 +65,15 @@ CREATE TABLE IF NOT EXISTS approvals (
     payload_hash TEXT NOT NULL,
     sidecar_path TEXT NOT NULL,
     approved_by TEXT NOT NULL,
-    approved_at TEXT NOT NULL
+    approved_at TEXT NOT NULL,
+    lineage TEXT
+);
+
+CREATE TABLE IF NOT EXISTS receipt_lineage (
+    receipt_sha256 TEXT PRIMARY KEY,
+    previous_sha256 TEXT,
+    receipt_path TEXT NOT NULL,
+    verified_at TEXT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS analysis_sessions (

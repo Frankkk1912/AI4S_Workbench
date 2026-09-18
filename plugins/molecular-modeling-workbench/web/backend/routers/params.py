@@ -14,6 +14,9 @@ import json
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Request
+from pydantic import BaseModel, ConfigDict
+
+from web.runner import db, preflight
 
 from ..paths import PathEscapeError, PathNotFoundError, resolve_workspace_path
 from ..security import require_local_request, require_token
@@ -328,3 +331,50 @@ def reject_protected_write(field: str) -> None:
             "system / handoff to change"
         ),
     )
+
+
+class ReceiptVerifyRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    previous_receipt_path: str
+    new_receipt_path: str
+
+
+def _receipt_message(boundary: dict) -> str:
+    if boundary["status"] == "expired":
+        return (
+            "Environment receipt has expired; re-run environment verify before "
+            "submitting new work."
+        )
+    if boundary["status"] == "expiring":
+        return "Environment receipt expires soon; plan to re-verify."
+    return "Environment receipt is within the valid window."
+
+
+@router.get("/receipt-status")
+def receipt_status(request: Request, receipt_path: str) -> dict:
+    roots = request.app.state.workspace_roots
+    resolved = _resolve(roots, receipt_path, "receipt")
+    receipt = _read_json(resolved, "receipt")
+    boundary = preflight.receipt_boundary(receipt)
+    return {
+        "receipt_path": str(resolved),
+        "status": boundary["status"],
+        "age_days": boundary["age_days"],
+        "remaining_days": boundary["remaining_days"],
+        "message": _receipt_message(boundary),
+    }
+
+
+@router.post("/receipt-verify", status_code=201)
+def record_receipt_verify(body: ReceiptVerifyRequest, request: Request) -> dict:
+    roots = request.app.state.workspace_roots
+    previous = _resolve(roots, body.previous_receipt_path, "previous receipt")
+    new = _resolve(roots, body.new_receipt_path, "new receipt")
+    conn = db.connect(request.app.state.db_path)
+    try:
+        return preflight.record_receipt_verification(conn, str(previous), str(new))
+    except preflight.PreflightError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    finally:
+        conn.close()

@@ -1186,6 +1186,221 @@ def launch(args: argparse.Namespace) -> dict:
     return receipt_doc
 
 
+def build_extend_plan(args: argparse.Namespace) -> dict:
+    manifest_path = require_file(args.manifest, "MD manifest")
+    manifest = load(manifest_path)
+    work = validate_grompp_manifest(manifest)
+    stage_plan_path = require_file(args.stage_plan, "MD stage plan")
+    plan = read_stage_plan(stage_plan_path)
+    stage = plan["stage"]
+    tpr_path = require_file(args.tpr, "original TPR input")
+    cpt_path = require_file(args.cpt, "frozen checkpoint input")
+    approval_path = require_file(args.approval, "extension approval")
+    source_boundary_path = require_file(args.source_boundary, "frozen checkpoint proof")
+    # The extension binds the ORIGINAL stage TPR through an explicit -s input;
+    # the only checkpoint that may be planned against is one frozen at a safe
+    # boundary (a stop-produced cpt or a naturally completed stage cpt).
+    if tpr_path.resolve() != (work / f"{plan['deffnm']}.tpr").resolve():
+        raise MDError("Extension must bind the original stage TPR via -s.")
+    boundary = load(source_boundary_path)
+    if (
+        boundary.get("artifact_type") != "md_frozen_checkpoint"
+        or boundary.get("frozen") is not True
+    ):
+        raise MDError(
+            "Checkpoint is not frozen at a safe boundary; extend planning is refused."
+        )
+    cpt_ref = boundary.get("checkpoint")
+    if (
+        not isinstance(cpt_ref, dict)
+        or cpt_ref.get("sha256") != hashf(cpt_path)
+        or cpt_ref.get("path") != str(cpt_path.resolve())
+    ):
+        raise MDError("Checkpoint does not match the frozen-boundary proof.")
+    approval = load(approval_path)
+    if approval.get("artifact_type") != "md_approval" or approval.get("kind") not in (
+        "extension",
+        "strategy",
+    ):
+        raise MDError("Extension approval reference is invalid.")
+    strategy = approval.get("strategy") or {}
+    strategy_digest = hashlib.sha256(
+        json.dumps(strategy, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    if (
+        not isinstance(strategy, dict)
+        or approval.get("strategy_hash") != strategy_digest
+    ):
+        raise MDError("Extension approval strategy hash does not match.")
+    if (args.extend_ns is None) == (args.nsteps is None):
+        raise MDError("Provide exactly one of --extend-ns or --nsteps.")
+    new_deffnm = f"{plan['deffnm']}_ext"
+    if args.extend_ns is not None:
+        if args.extend_ns <= 0:
+            raise MDError("--extend-ns must be positive.")
+        command = [
+            "gmx",
+            "convert-tpr",
+            "-s",
+            work_relative(tpr_path, work, "original TPR"),
+            "-o",
+            f"{new_deffnm}.tpr",
+            "-extend",
+            f"{args.extend_ns * 1000.0:.6g}",
+        ]
+        extension = {"kind": "extend_ns", "value_ns": args.extend_ns}
+    else:
+        if args.nsteps <= 0:
+            raise MDError("--nsteps must be positive.")
+        command = [
+            "gmx",
+            "convert-tpr",
+            "-s",
+            work_relative(tpr_path, work, "original TPR"),
+            "-o",
+            f"{new_deffnm}.tpr",
+            "-nsteps",
+            str(args.nsteps),
+        ]
+        extension = {"kind": "nsteps", "value_steps": args.nsteps}
+    extend_plan = {
+        "schema_version": "1.0",
+        "artifact_type": "md_extend_plan",
+        "created_at": now(),
+        "stage": stage,
+        "deffnm": plan["deffnm"],
+        "profile": plan["profile"],
+        "inputs": {
+            "manifest": file_reference(manifest_path),
+            "stage_plan": file_reference(stage_plan_path),
+            "tpr": file_reference(tpr_path),
+            "cpt": file_reference(cpt_path),
+            "approval": file_reference(approval_path),
+            "source_boundary": file_reference(source_boundary_path),
+        },
+        "extension": extension,
+        "output": {
+            "path": str((work / f"{new_deffnm}.tpr").resolve()),
+            "deffnm": new_deffnm,
+        },
+        "continuation": {
+            "original_tpr": file_reference(tpr_path),
+            "frozen_cpt": file_reference(cpt_path),
+            "lineage": {
+                "source_stage": stage,
+                "parent_stage_plan_sha256": plan["plan_sha256"],
+                "parent_approval": approval.get("approval_id"),
+            },
+        },
+        "command": command,
+    }
+    extend_plan["plan_sha256"] = plan_hash(extend_plan)
+    return extend_plan
+
+
+def read_extend_plan(path: Path) -> dict:
+    plan = load(path)
+    if (
+        plan.get("artifact_type") != "md_extend_plan"
+        or plan.get("schema_version") != "1.0"
+        or plan.get("plan_sha256") != plan_hash(plan)
+    ):
+        raise MDError("Extend plan is invalid or its hash does not match.")
+    command = plan.get("command")
+    if not isinstance(command, list) or command[:2] != ["gmx", "convert-tpr"]:
+        raise MDError("Extend plan command is invalid.")
+    return plan
+
+
+def execute_extend(args: argparse.Namespace) -> dict:
+    plan_path = require_file(args.plan, "extend plan")
+    plan = read_extend_plan(plan_path)
+    for key, supplied in (
+        ("manifest", args.manifest),
+        ("stage_plan", args.stage_plan),
+        ("tpr", args.tpr),
+        ("cpt", args.cpt),
+        ("approval", args.approval),
+        ("source_boundary", args.source_boundary),
+    ):
+        expected = plan["inputs"][key]
+        actual = file_reference(require_file(supplied, f"{key} input"))
+        if actual != {"path": expected["path"], "sha256": expected["sha256"]}:
+            raise MDError(f"{key} input does not match the extend plan.")
+    manifest = load(args.manifest)
+    work = validate_grompp_manifest(manifest)
+    stage_plan = read_stage_plan(args.stage_plan)
+    if (
+        stage_plan.get("stage") != plan.get("stage")
+        or stage_plan.get("deffnm") != plan.get("deffnm")
+        or stage_plan.get("profile") != plan.get("profile")
+    ):
+        raise MDError("Stage plan fields do not match the extend plan.")
+    boundary = load(args.source_boundary)
+    cpt_ref = boundary.get("checkpoint")
+    if (
+        boundary.get("frozen") is not True
+        or not isinstance(cpt_ref, dict)
+        or cpt_ref.get("sha256") != hashf(args.cpt)
+    ):
+        raise MDError("Frozen checkpoint proof no longer matches.")
+    receipt = load(Path(manifest["environment_receipt"]["path"]))
+    validate_receipt(receipt, plan["profile"])
+    tpr_rel = work_relative(args.tpr, work, "original TPR")
+    expected_command = [
+        "gmx",
+        "convert-tpr",
+        "-s",
+        tpr_rel,
+        "-o",
+        f"{plan['output']['deffnm']}.tpr",
+    ]
+    extension = plan["extension"]
+    if extension.get("kind") == "extend_ns":
+        expected_command.extend(["-extend", f"{extension['value_ns'] * 1000.0:.6g}"])
+    elif extension.get("kind") == "nsteps":
+        expected_command.extend(["-nsteps", str(extension["value_steps"])])
+    else:
+        raise MDError("Extend plan contains an invalid extension kind.")
+    if plan["command"] != expected_command:
+        raise MDError(
+            "Extend command differs from the permitted structured argument vector."
+        )
+    command = gromacs_command(receipt, work, expected_command)
+    result = subprocess.run(
+        command, cwd=work, text=True, capture_output=True, check=False
+    )
+    new_tpr = work / f"{plan['output']['deffnm']}.tpr"
+    log = work / f"{plan['output']['deffnm']}.convert.log"
+    log.write_text(
+        result.stdout + "\n--- STDERR ---\n" + result.stderr, encoding="utf-8"
+    )
+    completed = (
+        result.returncode == 0 and new_tpr.is_file() and new_tpr.stat().st_size > 0
+    )
+    if not completed:
+        raise MDError(
+            "convert-tpr failed to produce the extended TPR; the original TPR is preserved."
+        )
+    return {
+        "schema_version": "1.0",
+        "artifact_type": "md_extend_receipt",
+        "created_at": now(),
+        "status": "completed",
+        "stage": plan["stage"],
+        "deffnm": plan["deffnm"],
+        "plan": file_reference(plan_path),
+        "original_tpr": file_reference(args.tpr),
+        "frozen_cpt": file_reference(args.cpt),
+        "approval": file_reference(args.approval),
+        "new_tpr": file_reference(new_tpr),
+        "continuation": plan["continuation"],
+        "command": command,
+        "returncode": result.returncode,
+        "log": file_reference(log),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="command_name", required=True)
@@ -1265,6 +1480,25 @@ def main() -> None:
     p.add_argument("--manifest", type=Path, required=True)
     p.add_argument("--stage-plan", type=Path, required=True)
     p.add_argument("--output", type=Path, required=True)
+    p = sub.add_parser("plan-extend")
+    p.add_argument("--manifest", type=Path, required=True)
+    p.add_argument("--stage-plan", type=Path, required=True)
+    p.add_argument("--tpr", type=Path, required=True)
+    p.add_argument("--cpt", type=Path, required=True)
+    p.add_argument("--approval", type=Path, required=True)
+    p.add_argument("--source-boundary", type=Path, required=True)
+    p.add_argument("--extend-ns", type=float)
+    p.add_argument("--nsteps", type=int)
+    p.add_argument("--output", type=Path, required=True)
+    p = sub.add_parser("extend")
+    p.add_argument("--plan", type=Path, required=True)
+    p.add_argument("--manifest", type=Path, required=True)
+    p.add_argument("--stage-plan", type=Path, required=True)
+    p.add_argument("--tpr", type=Path, required=True)
+    p.add_argument("--cpt", type=Path, required=True)
+    p.add_argument("--approval", type=Path, required=True)
+    p.add_argument("--source-boundary", type=Path, required=True)
+    p.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     try:
         if args.command_name == "plan-duration":
@@ -1298,6 +1532,14 @@ def main() -> None:
             path = args.output
         elif args.command_name == "launch":
             data = launch(args)
+            write(args.output, data)
+            path = args.output
+        elif args.command_name == "plan-extend":
+            data = build_extend_plan(args)
+            write(args.output, data)
+            path = args.output
+        elif args.command_name == "extend":
+            data = execute_extend(args)
             write(args.output, data)
             path = args.output
         else:
