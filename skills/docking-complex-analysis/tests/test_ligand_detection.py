@@ -6,7 +6,7 @@ from pathlib import Path
 SCRIPT = Path(__file__).resolve().parents[1] / "scripts" / "analyze_docking_complex.py"
 SPEC = importlib.util.spec_from_file_location("analyze_docking_complex", SCRIPT)
 if SPEC is None or SPEC.loader is None:
-    raise ImportError(f"Unable to load {SCRIPT}")
+    raise RuntimeError("Unable to load analyze_docking_complex test module")
 MODULE = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = MODULE  # required for @dataclass type resolution
 SPEC.loader.exec_module(MODULE)
@@ -14,14 +14,7 @@ SPEC.loader.exec_module(MODULE)
 Atom = MODULE.Atom
 
 
-def make_atom(
-    serial: int,
-    name: str,
-    resname: str,
-    chain: str,
-    resseq: int,
-    element: str = "C",
-):
+def make_atom(serial, name, resname, chain, resseq, element="C"):
     return Atom(
         serial=serial,
         record="HETATM",
@@ -30,7 +23,7 @@ def make_atom(
         chain=chain,
         resseq=str(resseq),
         icode="",
-        x=float(serial),
+        x=serial * 1.0,
         y=0.0,
         z=0.0,
         element=element,

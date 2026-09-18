@@ -1,12 +1,12 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-09-18T05:39:21.154Z",
+  "generated_at": "2026-09-18T06:09:30.964Z",
   "source_root": "source-skills",
   "bundles": [
     {
       "source": "molecular-modeling-environment",
       "destination": "skills/molecular-modeling-environment",
-      "sha256": "b0a7ff576e47656ec55f2237113f644021141498af47cd828ad39f1712a3e390"
+      "sha256": "470dcfdfd1cc97802c4871805042a044981eda0531d790815ab726c159206078"
     },
     {
       "source": "molecular-geometry-common",

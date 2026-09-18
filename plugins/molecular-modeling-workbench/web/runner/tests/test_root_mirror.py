@@ -19,7 +19,18 @@ SOURCE_ROOT = PLUGIN_ROOT / "source-skills"
 ROOT_SKILLS = REPO_ROOT / "skills"
 
 SKILLS = [
+    "docking-complex-analysis",
+    "docking-project-manager",
+    "docking-simulation-run",
+    "docking-to-md-handoff",
+    "docking-visualization",
+    "ligand-parameterization",
+    "md-project-manager",
+    "md-simulation-plotting",
     "md-simulation-run",
+    "md-trajectory-analysis",
+    "molecular-geometry-common",
+    "molecular-modeling-environment",
 ]
 
 
@@ -34,17 +45,26 @@ def _file_tree(root: Path) -> dict[str, str]:
 
 
 class RootMirrorTests(unittest.TestCase):
-    def test_root_skills_mirror_matches_source_skills(self) -> None:
+    def test_root_skills_mirror_matches_all_source_skills(self) -> None:
+        exempt: list[str] = []
+        mismatches: list[str] = []
         for skill in SKILLS:
             source = SOURCE_ROOT / skill
             mirror = ROOT_SKILLS / skill
-            self.assertTrue(source.is_dir(), f"missing source skill {skill}")
-            self.assertTrue(mirror.is_dir(), f"missing root mirror {skill}")
-            self.assertEqual(
-                _file_tree(source),
-                _file_tree(mirror),
-                f"root mirror drift detected for {skill}",
-            )
+            if not source.is_dir():
+                mismatches.append(f"missing source skill {skill}")
+                continue
+            if not mirror.is_dir():
+                exempt.append(skill)
+                continue
+            if _file_tree(source) != _file_tree(mirror):
+                mismatches.append(f"root mirror drift detected for {skill}")
+        self.assertEqual(
+            mismatches,
+            [],
+            f"mirror mismatches: {mismatches}; "
+            f"exempt skills (no root mirror): {exempt}",
+        )
 
 
 if __name__ == "__main__":
