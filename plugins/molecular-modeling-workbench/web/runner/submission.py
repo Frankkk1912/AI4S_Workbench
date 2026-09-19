@@ -73,6 +73,21 @@ def submit_run(
     stamp = db.now()
     try:
         conn.execute("BEGIN IMMEDIATE")
+        # Recheck after acquiring the write lock. Two simultaneous requests can
+        # both miss the fast-path SELECT above; the loser must still deduplicate.
+        existing = conn.execute(
+            "SELECT * FROM runs WHERE request_id = ?", (request_id,)
+        ).fetchone()
+        if existing is not None:
+            conn.execute("COMMIT")
+            db.audit(
+                conn,
+                actor,
+                "run_request_deduplicated",
+                subject=existing["run_id"],
+                detail=request_id,
+            )
+            return {"run": existing, "created": False}
         active = conn.execute(
             "SELECT run_id, stage FROM runs WHERE work_dir = ? AND status IN ('queued','running','stopping')",
             (str(work_dir),),
@@ -181,6 +196,56 @@ def allocate_attempt(
     return attempt_id
 
 
+def bind_attempt_identity(
+    conn: sqlite3.Connection,
+    run_id: str,
+    stage: str,
+    attempt_id: int,
+    *,
+    image_digest: str,
+    work_dir_hash: str,
+    command_hash: str,
+    ownership_labels: dict[str, str],
+    cid_file: str | None = None,
+    actor: str = "runner",
+) -> None:
+    """Persist launch identity before Docker starts, closing the crash window."""
+    required = {
+        "ai4s.workbench.run_id": run_id,
+        "ai4s.workbench.stage": stage,
+        "ai4s.workbench.attempt": str(attempt_id),
+        "ai4s.workbench.image_digest": image_digest,
+        "ai4s.workbench.work_dir_hash": work_dir_hash,
+        "ai4s.workbench.command_hash": command_hash,
+    }
+    if any(ownership_labels.get(key) != value for key, value in required.items()):
+        raise SubmissionError("launch identity labels do not match the attempt")
+    cursor = conn.execute(
+        "UPDATE attempts SET image_digest=?, work_dir_hash=?, command_hash=?, "
+        "ownership_labels=?, cid_file=? WHERE run_id=? AND stage=? AND attempt_id=? "
+        "AND status='intent' AND container_at IS NULL",
+        (
+            image_digest,
+            work_dir_hash,
+            command_hash,
+            json.dumps(ownership_labels, sort_keys=True),
+            cid_file,
+            run_id,
+            stage,
+            attempt_id,
+        ),
+    )
+    if cursor.rowcount != 1:
+        raise SubmissionError("launch identity requires an unstarted intent attempt")
+    db.audit(
+        conn,
+        actor,
+        "attempt_identity_bound",
+        subject=run_id,
+        detail=f"stage={stage} attempt_id={attempt_id}",
+    )
+
+
 def record_container(
     conn: sqlite3.Connection,
     run_id: str,
@@ -192,6 +257,20 @@ def record_container(
     """Second registration phase: the detached container exists (crash closed)."""
     receipt = json.loads(Path(launch_receipt_path).read_text(encoding="utf-8"))
     labels = receipt.get("labels", {})
+    attempt = conn.execute(
+        "SELECT * FROM attempts WHERE run_id=? AND stage=? AND attempt_id=?",
+        (run_id, stage, attempt_id),
+    ).fetchone()
+    if attempt is None or not attempt["ownership_labels"]:
+        raise SubmissionError("launch identity was not bound before Docker started")
+    expected_labels = json.loads(attempt["ownership_labels"])
+    if (
+        receipt.get("gromacs_image_digest") != attempt["image_digest"]
+        or labels != expected_labels
+        or labels.get("ai4s.workbench.work_dir_hash") != attempt["work_dir_hash"]
+        or labels.get("ai4s.workbench.command_hash") != attempt["command_hash"]
+    ):
+        raise SubmissionError("launch receipt does not match the bound attempt identity")
     conn.execute("BEGIN IMMEDIATE")
     try:
         conn.execute(

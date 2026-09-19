@@ -4,7 +4,7 @@
 
 > Turn a fragile docking-to-MD toolchain into an auditable workflow you can launch with one prompt.
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-0F766E.svg)](../../LICENSE) [![Version: v0.2.0](https://img.shields.io/badge/Version-v0.2.0-2563EB.svg)](https://github.com/Frankkk1912/AI4S_Workbench) [![Platform: WSL2](https://img.shields.io/badge/Platform-WSL2-0F766E.svg)](https://github.com/Frankkk1912/AI4S_Workbench)
+[![License: MIT](https://img.shields.io/badge/License-MIT-0F766E.svg)](../../LICENSE) [![Version: v0.3.0](https://img.shields.io/badge/Version-v0.3.0-2563EB.svg)](https://github.com/Frankkk1912/AI4S_Workbench) [![Platform: WSL2](https://img.shields.io/badge/Platform-WSL2-0F766E.svg)](https://github.com/Frankkk1912/AI4S_Workbench)
 
 ## Overview
 
@@ -131,6 +131,50 @@ Keep scientific commands and large calculation files inside the WSL Linux home f
 
 [`runtime-contract.json`](runtime-contract.json) is the source of truth for the locked Python policy, supported onboarding platform, Linux-home workspace rule, external-tool evidence, GPU container reference, and fail-closed boundaries. A missing tool is a failed capability check—not permission to silently switch scientific parameters or backends.
 
+## Local MD Web Workbench
+
+The optional web workbench is a single-user service bound only to `127.0.0.1`.
+It provides parameter review, stage and log monitoring, safe stop/recovery,
+audited continuation, and reproducible trajectory diagnostics. It does not make
+Docker or scientific commands available directly to the browser.
+
+Build the same-origin frontend and install the reviewed user-service templates:
+
+```bash
+cd "$HOME/AI4S_Workbench/plugins/molecular-modeling-workbench"
+npm ci --prefix web/frontend
+npm --prefix web/frontend run build
+mkdir -p "$HOME/.config/systemd/user"
+cp web/deploy/ai4s-md-runner.service web/deploy/ai4s-md-api.service \
+  "$HOME/.config/systemd/user/"
+```
+
+Before enabling the units, edit their checkout and workspace locations for the
+local installation. Then reload and use the unprivileged lifecycle CLI:
+
+```bash
+systemctl --user daemon-reload
+uv run --project web --locked python -m web.runner.cli start
+uv run --project web --locked python -m web.runner.cli status
+uv run --project web --locked python -m web.runner.cli diagnose \
+  --data-dir "$WORKSPACE/.ai4s-md-workbench"
+uv run --project web --locked python -m web.runner.cli stop
+```
+
+The API prints the local access token once at startup and also stores it in
+`access.token` with mode `0600`. Enter it once in the browser; the same-origin
+handoff replaces it with an HttpOnly, SameSite=Strict cookie. The token is not
+placed in a URL or browser local storage. Host, Origin, CSRF, token, path, and
+symlink checks remain enabled.
+
+Runtime state defaults to `$WORKSPACE/.ai4s-md-workbench/`: `runner.db` is the
+SQLite lifecycle and audit authority, `access.token` is the local credential,
+and `logs/` plus `evidence/` remain user-owned. Keep this mode-`0700` directory
+outside shared or synchronized storage. The API admits paths only beneath the
+configured workspace roots. User services do not imply persistence across
+logout; linger is detected and reported but is never enabled automatically.
+See [`web/README.md`](web/README.md) for the data layout and service notes.
+
 ## Prompt Examples
 
 ### Audit my WSL2 GPU environment before docking
@@ -191,6 +235,7 @@ Start an MD project from the ready environment receipt and, for this ligand syst
 
 - [x] Released v0.1.0 as the initial WSL2-first public beta.
 - [x] Completed v0.2.0 technical acceptance for Windows 11 onboarding preflight, fail-closed WSL initialization, Codex/Claude skill discovery, hash-bound selected-pose export and docking-to-MD validation, and RTX 3080 GPU MD execution.
+- [x] Added the v0.3.0 localhost-only MD web workbench, crash-safe runner lifecycle, approval and recovery controls, reproducible diagnostics, and CI-backed service tests. The separate v0.3.0 GPU restart drill remains an explicit release gate until its public-safe conclusion is recorded.
 
 ### Planned
 

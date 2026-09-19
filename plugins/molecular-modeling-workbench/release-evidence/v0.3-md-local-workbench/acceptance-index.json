@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "artifact_type": "molecular_modeling_release_acceptance_index",
+  "plugin_version": "0.3.0",
+  "automated_evidence": {
+    "ci": {
+      "url": "https://github.com/Frankkk1912/AI4S_Workbench/actions/runs/35418680922",
+      "web_tests": "success",
+      "cpu_contract": "success"
+    },
+    "mock_drills": {
+      "path": "web/runner/tests/test_drills.py",
+      "test_count": 8,
+      "status": "pass"
+    },
+    "aggregate_command": "npm run test:all",
+    "aggregate_status": "pass",
+    "runner_test_count": 81,
+    "backend_test_count": 58,
+    "frontend_test_count": 31,
+    "assembly_command": "npm run sync && npm run check",
+    "assembly_status": "pass"
+  },
+  "manual_gpu_v17": {
+    "status": "pending_user_execution",
+    "claim": "not_verified"
+  },
+  "release_automation_triggered": false
+}

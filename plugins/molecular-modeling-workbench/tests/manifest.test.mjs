@@ -47,7 +47,7 @@ test("package.json is the release version source and matches plugin metadata", (
 	}
 	assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
 	assert.equal(pkg.version, meta.version);
-	assert.equal(pkg.version, "0.2.0");
+	assert.equal(pkg.version, "0.3.0");
 });
 
 test("codex and claude manifests are generated and synchronized", () => {
