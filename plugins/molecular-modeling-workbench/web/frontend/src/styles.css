@@ -16,6 +16,14 @@ section {
   margin: 1rem 0;
 }
 
+.security-guide {
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #b7791f;
+  background: #fffaf0;
+  color: #633c0d;
+}
+
 .badge {
   display: inline-block;
   font-size: 0.75rem;

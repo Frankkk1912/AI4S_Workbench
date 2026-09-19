@@ -95,13 +95,14 @@ export class ApiClient {
     if (raw) {
       for (const [key, value] of Object.entries(raw)) headers[key] = value;
     }
-    headers.Authorization = `Bearer ${this.token}`;
+    if (this.token) headers.Authorization = `Bearer ${this.token}`;
     const method = init.method ?? "GET";
     if (method !== "GET" && method !== "HEAD") {
       headers[CSRF_HEADER] = "1";
     }
     const response = await this.fetchFn(`${this.baseUrl}${path}`, {
       ...init,
+      credentials: "include",
       headers,
     });
     if (!response.ok) {
@@ -116,6 +117,21 @@ export class ApiClient {
     }
     if (response.status === 204) return undefined as T;
     return (await response.json()) as T;
+  }
+
+  async establishHandoff(): Promise<void> {
+    const response = await this.fetchFn(`${this.baseUrl}/auth/handoff`, {
+      method: "POST",
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        [CSRF_HEADER]: "1",
+      },
+      body: JSON.stringify({ access_token: this.token }),
+    });
+    if (!response.ok) {
+      throw new ApiError(response.status, "Local token handoff failed");
+    }
   }
 
   getRun(runId: string): Promise<Run> {
@@ -233,9 +249,11 @@ export class ApiClient {
     sessionId: string,
     format: AnalysisExportFormat,
   ): Promise<Blob> {
+    const headers: Record<string, string> = {};
+    if (this.token) headers.Authorization = `Bearer ${this.token}`;
     const response = await this.fetchFn(
       `${this.baseUrl}/analysis/sessions/${sessionId}/exports/${format}`,
-      { headers: { Authorization: `Bearer ${this.token}` } },
+      { credentials: "include", headers },
     );
     if (!response.ok) {
       throw new ApiError(response.status, `HTTP ${response.status}`);

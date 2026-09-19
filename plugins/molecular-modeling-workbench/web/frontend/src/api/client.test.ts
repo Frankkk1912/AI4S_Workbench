@@ -6,6 +6,7 @@ interface Call {
   method: string;
   body?: unknown;
   headers?: Record<string, string>;
+  credentials?: RequestCredentials;
 }
 
 function mockFetch(): { fn: FetchLike; calls: Call[] } {
@@ -17,6 +18,7 @@ function mockFetch(): { fn: FetchLike; calls: Call[] } {
       method: init?.method ?? "GET",
       body: typeof init?.body === "string" ? JSON.parse(init.body) : undefined,
       headers,
+      credentials: init?.credentials,
     });
     return {
       ok: true,
@@ -28,6 +30,18 @@ function mockFetch(): { fn: FetchLike; calls: Call[] } {
 }
 
 describe("ApiClient operation mapping", () => {
+  it("exchanges the startup token for a same-origin cookie", async () => {
+    const { fn, calls } = mockFetch();
+    const api = new ApiClient("", "tok", fn);
+    await api.establishHandoff();
+    expect(calls[0].url).toBe("/auth/handoff");
+    expect(calls[0].method).toBe("POST");
+    expect(calls[0].credentials).toBe("include");
+    expect(calls[0].headers?.["X-AI4S-Request"]).toBe("1");
+    expect((calls[0].body as { access_token: string }).access_token).toBe("tok");
+    expect(calls[0].headers?.Authorization).toBeUndefined();
+  });
+
   it("maps stop/resume/retry/approve to the correct endpoints", async () => {
     const { fn, calls } = mockFetch();
     const api = new ApiClient("http://127.0.0.1:8765", "tok", fn);
@@ -99,6 +113,14 @@ describe("ApiClient operation mapping", () => {
     expect((calls[2].body as { request_id: string }).request_id).toBe(
       "redraw-1",
     );
+  });
+
+  it("uses the HttpOnly cookie without emitting an empty bearer", async () => {
+    const { fn, calls } = mockFetch();
+    const api = new ApiClient("", "", fn);
+    await api.getRun("r1");
+    expect(calls[0].credentials).toBe("include");
+    expect(calls[0].headers?.Authorization).toBeUndefined();
   });
 
   it("does not send the CSRF header on GET requests", async () => {

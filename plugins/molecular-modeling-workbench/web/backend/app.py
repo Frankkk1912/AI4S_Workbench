@@ -12,11 +12,13 @@ from __future__ import annotations
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
 
 from web.runner import db
 
 from .routers import params, runs, stream
 from .routers.analysis import router as analysis_router
+from .token_handoff import router as token_handoff_router
 
 
 def create_app(
@@ -24,6 +26,7 @@ def create_app(
     workspace_roots: list[str | Path],
     db_path: str | Path | None = None,
     title: str = "md-local-workbench",
+    frontend_dist: str | Path | None = None,
 ) -> FastAPI:
     app = FastAPI(title=title)
     app.state.token = token
@@ -39,4 +42,11 @@ def create_app(
     app.include_router(stream.router)
     app.include_router(params.router)
     app.include_router(analysis_router)
+    app.include_router(token_handoff_router)
+
+    if frontend_dist is not None:
+        frontend = Path(frontend_dist).resolve()
+        if not frontend.is_dir():
+            raise ValueError(f"frontend build directory does not exist: {frontend}")
+        app.mount("/", StaticFiles(directory=str(frontend), html=True), name="frontend")
     return app

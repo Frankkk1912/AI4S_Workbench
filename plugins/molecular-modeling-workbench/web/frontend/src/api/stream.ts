@@ -29,7 +29,9 @@ export function nativeEventSourceFactory(url: string): StreamSourceFactory {
             let source: EventSource | null = null;
             return {
                   start(handlers: StreamHandlers) {
-                        const es = new EventSource(url);
+                        const es = new EventSource(url, {
+                              withCredentials: true,
+                        });
                         source = es;
                         es.onopen = () => handlers.onOpen();
                         es.onerror = () => handlers.onError();

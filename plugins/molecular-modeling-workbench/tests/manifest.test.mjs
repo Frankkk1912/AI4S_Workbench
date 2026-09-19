@@ -122,11 +122,13 @@ test("test runner is platform-neutral and preserves the locked Python contract",
 	assert.equal(pkg.scripts.test, "node scripts/run-tests.mjs");
 	assert.equal(
 		pkg.scripts["test:all"],
-		"node scripts/run-tests.mjs --include-deferred",
+		"node scripts/run-tests.mjs --include-deferred --include-web",
 	);
+	assert.equal(pkg.scripts["test:web"], "node scripts/run-tests.mjs --web-only");
 	const runner = readText(resolve(root, "scripts/run-tests.mjs"));
 	assert.match(runner, /deferredPythonSuites/);
 	assert.match(runner, /--include-deferred/);
+	assert.match(runner, /--project.*web/);
 	assert.match(runner, /--locked/);
 	assert.match(runner, /spawnSync/);
 	assert.doesNotMatch(runner, /bash -lc|PYTHONPYCACHEPREFIX=.*&&/);

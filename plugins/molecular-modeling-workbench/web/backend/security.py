@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 """Local security boundary (M2 T2.2): Host/Origin/CSRF and token checks.
 
 The API is single-user and localhost-only, so it rejects any Host or Origin
@@ -16,6 +17,7 @@ from fastapi import HTTPException, Request
 
 ALLOWED_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "[::1]"})
 CSRF_HEADER = "X-AI4S-Request"
+AUTH_COOKIE_NAME = "ai4s_md_auth"
 SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 
 
@@ -84,8 +86,11 @@ def extract_token(request: Request) -> str | None:
     """Return the bearer token from Authorization or the X-AI4S-Token header."""
     authorization = request.headers.get("Authorization")
     if authorization and authorization.startswith("Bearer "):
-        return authorization[len("Bearer ") :]
-    return request.headers.get("X-AI4S-Token")
+        bearer = authorization[len("Bearer ") :]
+        if bearer:
+            return bearer
+    header_token = request.headers.get("X-AI4S-Token")
+    return header_token if header_token else request.cookies.get(AUTH_COOKIE_NAME)
 
 
 def require_token(request: Request) -> None:

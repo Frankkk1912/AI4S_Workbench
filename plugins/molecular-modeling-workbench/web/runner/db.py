@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 """Run/attempt/container lifecycle authority on SQLite (M1 T1.1).
 
 Authority boundary: SQLite owns task and container lifecycle state and its
@@ -13,6 +14,8 @@ from __future__ import annotations
 import datetime as dt
 import sqlite3
 from pathlib import Path
+
+from .migrate import migrate as migrate_schema
 
 SCHEMA_VERSION = 3
 RUN_STATUSES = (
@@ -86,26 +89,32 @@ def init(
     boot_id: str | None = None,
     schema_path: Path | None = None,
 ) -> None:
-    """Create the schema and record schema version and boot identity."""
+    """Migrate the schema and record schema version and boot identity."""
     path = schema_path or Path(__file__).with_name("schema.sql")
-    conn.executescript(path.read_text(encoding="utf-8"))
+    previous_version = migrate_schema(
+        conn, schema_path=path, target_version=SCHEMA_VERSION
+    )
     stamp = now()
-    conn.execute(
-        "INSERT INTO meta(key, value) VALUES ('schema_version', ?) "
-        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        (str(SCHEMA_VERSION),),
+    existing_boot = recorded_boot_id(conn)
+    recorded_boot = (
+        boot_id
+        if boot_id is not None
+        else (existing_boot if existing_boot is not None else current_boot_id())
     )
-    recorded_boot = boot_id if boot_id is not None else current_boot_id()
-    conn.execute(
-        "INSERT INTO meta(key, value) VALUES ('boot_id', ?) "
-        "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-        (recorded_boot,),
-    )
+    if boot_id is not None or existing_boot is None:
+        conn.execute(
+            "INSERT INTO meta(key, value) VALUES ('boot_id', ?) "
+            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            (recorded_boot,),
+        )
     audit(
         conn,
         "runner",
         "db_initialized",
-        detail=f"schema_version={SCHEMA_VERSION} boot_id={recorded_boot} at {stamp}",
+        detail=(
+            f"schema_version={SCHEMA_VERSION} previous_version={previous_version} "
+            f"boot_id={recorded_boot} at {stamp}"
+        ),
     )
 
 

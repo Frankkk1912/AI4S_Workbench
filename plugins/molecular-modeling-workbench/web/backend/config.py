@@ -1,10 +1,9 @@
 """Backend configuration and local token file management (M2 T2.1).
 
 The backend is single-user and bound to 127.0.0.1 only. On startup a random
-local token is generated (or the existing token file is reused), stored in a
-0600-permission file, and printed exactly once so the operator can hand it to
-the local frontend. The full same-origin static-frontend handoff is T6.8; this
-module only establishes the token boundary every API requires.
+local token is generated (or the existing token file is reused) and stored in
+a 0600-permission file. The same-origin handoff in token_handoff.py exchanges
+that startup token for an HttpOnly cookie without placing it in a URL.
 """
 
 from __future__ import annotations

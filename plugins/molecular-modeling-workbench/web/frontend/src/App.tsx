@@ -30,10 +30,9 @@ const DEMO_STRATEGY: Strategy = {
 const STAGE_ORDER = ["em", "nvt", "npt", "md_prod"] as const;
 
 export default function App() {
-    const [baseUrl, setBaseUrl] = useState("http://127.0.0.1:8765");
-    const [token, setToken] = useState(
-        () => localStorage.getItem("md-workbench-token") ?? "",
-    );
+    const [baseUrl, setBaseUrl] = useState("");
+    const [token, setToken] = useState("");
+    const [handoffComplete, setHandoffComplete] = useState(false);
     const [runId, setRunId] = useState("");
     const [run, setRun] = useState<Run | null>(null);
     const [approval, setApproval] = useState<Approval | null>(null);
@@ -78,7 +77,10 @@ export default function App() {
     const load = async () => {
         setError(null);
         try {
-            localStorage.setItem("md-workbench-token", token);
+            if (!token) throw new Error("请输入后端启动时显示的一次性本地 token");
+            await client.establishHandoff();
+            setHandoffComplete(true);
+            setToken("");
             const [runDoc, approvalDoc, paramsDoc, analysisDoc] =
                 await Promise.all([
                     client.getRun(runId),
@@ -121,8 +123,17 @@ export default function App() {
         <main className="app">
             <header>
                 <h1>MD Local Workbench</h1>
-                <p>本地单用户 MD 仿真工作台（前端核心 UI，M4）</p>
+                <p>本地单用户 MD 仿真工作台</p>
             </header>
+
+            {!handoffComplete && (
+                <aside className="security-guide" role="note">
+                    首次访问：输入后端启动时显示的 token。token 保存在本机 0600
+                    文件中，成功交接后浏览器仅使用 HttpOnly 同源 cookie；页面不会将
+                    token 写入 localStorage。关闭 Pi 会停止服务；仅注销用户时能否继续
+                    取决于 systemd user linger，未确认前不要假定可跨注销运行。
+                </aside>
+            )}
 
             <section className="connection">
                 <label>
@@ -135,8 +146,13 @@ export default function App() {
                 <label>
                     token{" "}
                     <input
+                        type="password"
+                        autoComplete="off"
                         value={token}
-                        onChange={(e) => setToken(e.target.value)}
+                        onChange={(e) => {
+                            setToken(e.target.value);
+                            setHandoffComplete(false);
+                        }}
                     />
                 </label>
                 <label>

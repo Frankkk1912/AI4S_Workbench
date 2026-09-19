@@ -7,6 +7,7 @@
     "sync": "node scripts/assemble-plugin.mjs sync",
     "check": "node scripts/assemble-plugin.mjs check && node scripts/verify-plugin.mjs",
     "test": "node scripts/run-tests.mjs",
-    "test:all": "node scripts/run-tests.mjs --include-deferred"
+    "test:web": "node scripts/run-tests.mjs --web-only",
+    "test:all": "node scripts/run-tests.mjs --include-deferred --include-web"
   }
 }
