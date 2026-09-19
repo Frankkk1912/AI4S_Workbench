@@ -4,7 +4,7 @@
 
 > 把脆弱繁琐的对接到 MD 工具链，变成一句话即可启动、全程可审计的科研工作流。
 
-[![许可证：MIT](https://img.shields.io/badge/License-MIT-0F766E.svg)](../../LICENSE) [![版本：v0.2.0](https://img.shields.io/badge/Version-v0.2.0-2563EB.svg)](https://github.com/Frankkk1912/AI4S_Workbench) [![平台：WSL2](https://img.shields.io/badge/Platform-WSL2-0F766E.svg)](https://github.com/Frankkk1912/AI4S_Workbench)
+[![许可证：MIT](https://img.shields.io/badge/License-MIT-0F766E.svg)](../../LICENSE) [![版本：v0.3.0](https://img.shields.io/badge/Version-v0.3.0-2563EB.svg)](https://github.com/Frankkk1912/AI4S_Workbench) [![平台：WSL2](https://img.shields.io/badge/Platform-WSL2-0F766E.svg)](https://github.com/Frankkk1912/AI4S_Workbench)
 
 ## 概览（Overview）
 
@@ -131,6 +131,36 @@ claude
 
 [`runtime-contract.json`](runtime-contract.json) 是锁定 Python 策略、受支持 onboarding 平台、Linux home 工作区规则、外部工具证据、GPU 容器引用与 fail-closed 边界的唯一事实来源。缺少工具意味着能力检查失败，绝不等于可以静默切换科学参数或后端。
 
+## 本地 MD Web 工作台（Local MD Web Workbench）
+
+可选的 Web 工作台是只绑定 `127.0.0.1` 的单用户服务，提供参数审阅、阶段与日志监控、安全停止/恢复、受审计延长和可复现轨迹诊断。浏览器不能直接调用 Docker 或科学计算命令。
+
+先构建同源前端，再安装经审阅的用户级服务模板：
+
+```bash
+cd "$HOME/AI4S_Workbench/plugins/molecular-modeling-workbench"
+npm ci --prefix web/frontend
+npm --prefix web/frontend run build
+mkdir -p "$HOME/.config/systemd/user"
+cp web/deploy/ai4s-md-runner.service web/deploy/ai4s-md-api.service \
+  "$HOME/.config/systemd/user/"
+```
+
+启用前必须按本机安装位置修改 unit 中的 checkout 与 workspace 路径。随后 reload，并通过无特权生命周期 CLI 操作：
+
+```bash
+systemctl --user daemon-reload
+uv run --project web --locked python -m web.runner.cli start
+uv run --project web --locked python -m web.runner.cli status
+uv run --project web --locked python -m web.runner.cli diagnose \
+  --data-dir "$WORKSPACE/.ai4s-md-workbench"
+uv run --project web --locked python -m web.runner.cli stop
+```
+
+API 启动时只打印一次本地访问 token，并以 `0600` 权限存入 `access.token`。在浏览器中输入一次后，同源交接会改用 HttpOnly、SameSite=Strict cookie；token 不进入 URL 或浏览器 local storage。Host、Origin、CSRF、token、路径和符号链接检查始终启用。
+
+运行时状态默认位于 `$WORKSPACE/.ai4s-md-workbench/`：`runner.db` 是 SQLite 生命周期与审计权威，`access.token` 是本地凭据，`logs/` 与 `evidence/` 由用户持有。该目录权限为 `0700`，不得放入共享或同步存储；API 只接纳配置的 workspace roots 下的路径。用户级服务不天然跨 logout 持续；CLI 只检测并报告 linger，不会自动启用。数据布局和服务说明见 [`web/README.md`](web/README.md)。
+
 ## Prompt 示例（Prompt Examples）
 
 ### 在对接前审计 WSL2 GPU 环境
@@ -191,6 +221,7 @@ claude
 
 - [x] 发布 v0.1.0，作为首个 WSL2-first 公测版。
 - [x] 完成 v0.2.0 技术验收：Windows 11 onboarding 预检、fail-closed WSL 初始化、Codex/Claude 技能发现、哈希绑定 selected-pose 导出与 docking-to-MD 校验，以及 RTX 3080 GPU MD 执行。
+- [x] 在 v0.3.0 中加入仅限 localhost 的 MD Web 工作台、崩溃安全 runner 生命周期、审批与恢复控制、可复现诊断及 CI 服务测试。v0.3.0 的独立 GPU 重启演练仍是发布门禁，完成前不会声称通过。
 
 ### 计划中（Planned）
 

@@ -1,0 +1,14 @@
+[project]
+name = "md-local-workbench-web"
+version = "0.1.0"
+description = "Locked FastAPI runtime for the local MD workbench (independent of the scientific runtime)."
+requires-python = ">=3.10,<3.13"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn>=0.30,<1",
+  "pydantic>=2.7,<3",
+  "httpx>=0.27,<1",
+]
+
+[tool.uv]
+package = false

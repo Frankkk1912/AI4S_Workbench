@@ -47,7 +47,7 @@ test("package.json is the release version source and matches plugin metadata", (
 	}
 	assert.match(pkg.version, /^\d+\.\d+\.\d+$/);
 	assert.equal(pkg.version, meta.version);
-	assert.equal(pkg.version, "0.2.0");
+	assert.equal(pkg.version, "0.3.0");
 });
 
 test("codex and claude manifests are generated and synchronized", () => {
@@ -67,10 +67,7 @@ test("tree hashing excludes local caches from reproducible bundle manifests", ()
 		writeFileSync(resolve(root, "tracked.txt"), "stable content\n");
 		const baseline = treeHash(root);
 		mkdirSync(resolve(root, ".ruff_cache"));
-		writeFileSync(
-			resolve(root, ".ruff_cache", "state"),
-			"machine-local state\n",
-		);
+		writeFileSync(resolve(root, ".ruff_cache", "state"), "machine-local state\n");
 		mkdirSync(resolve(root, ".venv"));
 		writeFileSync(resolve(root, ".venv", "marker"), "environment state\n");
 		assert.equal(treeHash(root), baseline);
@@ -97,9 +94,14 @@ test("runtime contract and Python lock are present", () => {
 	const contract = readJson(resolve(root, "runtime-contract.json"));
 	assert.equal(contract.artifact_type, "molecular_modeling_runtime_contract");
 	assert.equal(contract.python.lockfile, "uv.lock");
-	assert.equal(contract.onboarding.windows_host, "Windows 11");
-	assert.equal(contract.onboarding.wsl_distribution, "Ubuntu-22.04");
-	assert.equal(contract.onboarding.scientific_execution, "wsl-native-only");
+	assert.equal(contract.onboarding.windows_wsl.windows_host, "Windows 11");
+	assert.equal(contract.onboarding.windows_wsl.wsl_distribution, "Ubuntu-22.04");
+	assert.equal(
+		contract.onboarding.scientific_execution,
+		"native-linux-or-wsl-native",
+	);
+	assert.ok(contract.onboarding.supported_gpu_profiles.includes("linux-gpu"));
+	assert.ok(contract.onboarding.supported_gpu_profiles.includes("wsl2-gpu"));
 	assert.equal(existsSync(resolve(root, "pyproject.toml")), true);
 	assert.equal(existsSync(resolve(root, "uv.lock")), true);
 });
@@ -120,11 +122,13 @@ test("test runner is platform-neutral and preserves the locked Python contract",
 	assert.equal(pkg.scripts.test, "node scripts/run-tests.mjs");
 	assert.equal(
 		pkg.scripts["test:all"],
-		"node scripts/run-tests.mjs --include-deferred",
+		"node scripts/run-tests.mjs --include-deferred --include-web",
 	);
+	assert.equal(pkg.scripts["test:web"], "node scripts/run-tests.mjs --web-only");
 	const runner = readText(resolve(root, "scripts/run-tests.mjs"));
 	assert.match(runner, /deferredPythonSuites/);
 	assert.match(runner, /--include-deferred/);
+	assert.match(runner, /--project.*web/);
 	assert.match(runner, /--locked/);
 	assert.match(runner, /spawnSync/);
 	assert.doesNotMatch(runner, /bash -lc|PYTHONPYCACHEPREFIX=.*&&/);
