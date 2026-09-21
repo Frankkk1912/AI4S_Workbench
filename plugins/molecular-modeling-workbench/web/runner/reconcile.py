@@ -58,7 +58,10 @@ class DockerPort:
             line = line.strip()
             if not line:
                 continue
-            row = json.loads(line)
+            try:
+                row = json.loads(line)
+            except ValueError as exc:
+                raise RuntimeError("docker ps returned malformed JSON") from exc
             records.append(
                 {
                     "id": row.get("ID"),
@@ -87,10 +90,25 @@ class DockerPort:
                 return str(item)
         return None
 
+    def container_returncode(self, container_id: str) -> int | None:
+        """Return Docker's recorded exit code, or None when undecidable."""
+        result = self._run(
+            ["inspect", "--format", "{{.State.ExitCode}}", container_id]
+        )
+        if result.returncode != 0:
+            return None
+        try:
+            return int(result.stdout.strip())
+        except ValueError:
+            return None
+
 
 def _identity_matches(attempt: sqlite3.Row, container: dict) -> tuple[bool, str | None]:
     """Full ownership check: digest, work_dir hash, command hash, all labels."""
-    labels = json.loads(attempt["ownership_labels"] or "{}")
+    try:
+        labels = json.loads(attempt["ownership_labels"] or "{}")
+    except ValueError:
+        return False, "attempt ownership labels are malformed"
     if container.get("name") != attempt["container_name"]:
         return (
             False,
@@ -133,9 +151,15 @@ def reconcile(
         ).fetchall()
         attempt = attempts[0] if attempts else None
 
-        # Rule 1: host restart is decided by boot identity alone; containers
-        # are deliberately not touched and nothing is relaunched.
-        classified = db.classify_after_restart(run["status"], host_restarted)
+        # Rule 1: host restart is decided by boot identity alone for work that
+        # may have started. A queued run with no attempt has no computation to
+        # interrupt and remains eligible for its first approved dispatch.
+        unstarted = run["status"] == "queued" and attempt is None
+        classified = (
+            run["status"]
+            if unstarted
+            else db.classify_after_restart(run["status"], host_restarted)
+        )
         if classified != run["status"]:
             _set_status(
                 conn,

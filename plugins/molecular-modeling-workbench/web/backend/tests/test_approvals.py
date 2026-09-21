@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 """T3.1: approval records, sidecar/SQLite consistency, and the approval gate."""
 
 from __future__ import annotations
@@ -94,6 +95,22 @@ class ApprovalTests(unittest.TestCase):
             self.assertIsNotNone(row)
             self.assertEqual(row["run_id"], run["run_id"])
             self.assertEqual(row["payload_hash"], data["strategy_hash"])
+        finally:
+            conn.close()
+
+    def test_repeated_identical_approval_is_idempotent(self) -> None:
+        run = self._submit()
+        first = self._approve(run["run_id"])
+        second = self._approve(run["run_id"])
+        self.assertEqual(first.status_code, 201, first.text)
+        self.assertEqual(second.status_code, 201, second.text)
+        self.assertEqual(first.json()["approval_id"], second.json()["approval_id"])
+        conn = self._connect()
+        try:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM approvals WHERE run_id=?", (run["run_id"],)
+            ).fetchone()[0]
+            self.assertEqual(count, 1)
         finally:
             conn.close()
 

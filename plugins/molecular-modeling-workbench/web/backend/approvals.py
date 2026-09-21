@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 """Scientific strategy approval records and lineage (M3 T3.1).
 
 An approval is a user's explicit, persistent confirmation of a scientific
@@ -106,27 +107,47 @@ def record_approval(
     previous: dict | None = None,
     actor: str = "user",
 ) -> dict:
-    """Persist a user approval as a SQLite row plus a workspace sidecar."""
-    doc = build_approval(
-        run_id, strategy, kind=kind, approved_by=approved_by, previous=previous
-    )
-    path = write_sidecar(workspace, doc)
+    """Persist a user approval, reusing an identical latest approval."""
+    payload_hash = strategy_hash(strategy)
     conn.execute("BEGIN IMMEDIATE")
+    reused = False
     try:
-        conn.execute(
-            "INSERT INTO approvals(approval_id, run_id, kind, payload_hash, sidecar_path, "
-            "approved_by, approved_at, lineage) VALUES (?,?,?,?,?,?,?,?)",
-            (
-                doc["approval_id"],
+        existing = conn.execute(
+            "SELECT * FROM approvals WHERE run_id=? AND kind=? "
+            "ORDER BY approved_at DESC, approval_id DESC LIMIT 1",
+            (run_id, kind),
+        ).fetchone()
+        if (
+            previous is None
+            and existing is not None
+            and existing["payload_hash"] == payload_hash
+            and existing["approved_by"] == approved_by
+        ):
+            doc = verify_approval_artifact(conn, existing)
+            reused = True
+        else:
+            doc = build_approval(
                 run_id,
-                kind,
-                doc["strategy_hash"],
-                str(path.resolve()),
-                approved_by,
-                doc["created_at"],
-                json.dumps(doc["lineage"], sort_keys=True),
-            ),
-        )
+                strategy,
+                kind=kind,
+                approved_by=approved_by,
+                previous=previous,
+            )
+            path = write_sidecar(workspace, doc)
+            conn.execute(
+                "INSERT INTO approvals(approval_id, run_id, kind, payload_hash, sidecar_path, "
+                "approved_by, approved_at, lineage) VALUES (?,?,?,?,?,?,?,?)",
+                (
+                    doc["approval_id"],
+                    run_id,
+                    kind,
+                    doc["strategy_hash"],
+                    str(path.resolve()),
+                    approved_by,
+                    doc["created_at"],
+                    json.dumps(doc["lineage"], sort_keys=True),
+                ),
+            )
         conn.execute("COMMIT")
     except BaseException:
         if conn.in_transaction:
@@ -135,7 +156,7 @@ def record_approval(
     db.audit(
         conn,
         actor,
-        "approval_recorded",
+        "approval_reused" if reused else "approval_recorded",
         subject=run_id,
         detail=(
             f"approval_id={doc['approval_id']} kind={kind} "
@@ -178,7 +199,10 @@ def verify_approval_artifact(conn: sqlite3.Connection, row: sqlite3.Row) -> dict
     path = Path(row["sidecar_path"])
     if not path.is_file():
         raise ApprovalError(f"Approval sidecar is missing: {path}")
-    doc = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        doc = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        raise ApprovalError(f"Approval sidecar is unreadable: {path}") from exc
     if (
         doc.get("artifact_type") != APPROVAL_ARTIFACT_TYPE
         or doc.get("approval_id") != row["approval_id"]

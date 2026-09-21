@@ -19,7 +19,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from . import db, reconcile
+from . import db, lock, reconcile
+from .executor import tick
 from .migrate import (
     ACCESS_FILE_NAME,
     DB_FILE_NAME,
@@ -118,8 +119,16 @@ def _container_summary(docker_path: str, command_runner=_run) -> dict[str, Any]:
         return {"reachable": False, "containers": [], "error": result.stderr.strip()}
     containers: list[dict[str, Any]] = []
     for line in result.stdout.splitlines():
-        if line.strip():
+        if not line.strip():
+            continue
+        try:
             containers.append(json.loads(line))
+        except ValueError as exc:
+            return {
+                "reachable": False,
+                "containers": [],
+                "error": f"docker ps returned malformed JSON: {exc}",
+            }
     return {"reachable": True, "containers": containers}
 
 
@@ -161,37 +170,38 @@ def serve(
     poll_seconds: float = 30.0,
     once: bool = False,
 ) -> None:
-    """Run the user-owned reconciliation loop; never launches a service itself."""
+    """Run the single-instance hosted execution and reconciliation loop."""
     paths = data_paths(data_dir)
-    conn = db.connect(paths["db"])
-    schema_path = Path(db.__file__).with_name("schema.sql")
-    migrate(conn, schema_path=schema_path, target_version=db.SCHEMA_VERSION)
-    current = db.current_boot_id()
-    if db.recorded_boot_id(conn) is None:
-        conn.execute(
-            "INSERT INTO meta(key, value) VALUES ('boot_id', ?) "
-            "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-            (current,),
-        )
-    docker = reconcile.DockerPort(docker_path)
-    try:
-        while True:
-            host_restarted = db.boot_changed(conn, current=current)
-            if host_restarted or docker.is_reachable():
-                # On a host restart, reconcile classifies every active run from
-                # boot identity before making any Docker call. This preserves
-                # fail-closed evidence even while Docker is still unavailable.
-                reconcile.reconcile(conn, docker, current_boot=current)
+    with lock.RunnerLock(paths["root"] / "runner.lock"):
+        conn = db.connect(paths["db"])
+        schema_path = Path(db.__file__).with_name("schema.sql")
+        migrate(conn, schema_path=schema_path, target_version=db.SCHEMA_VERSION)
+        current = db.current_boot_id()
+        if db.recorded_boot_id(conn) is None:
             conn.execute(
                 "INSERT INTO meta(key, value) VALUES ('boot_id', ?) "
                 "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
                 (current,),
             )
-            if once:
-                break
-            time.sleep(poll_seconds)
-    finally:
-        conn.close()
+        docker = reconcile.DockerPort(docker_path)
+        try:
+            while True:
+                host_restarted = db.boot_changed(conn, current=current)
+                if host_restarted or docker.is_reachable():
+                    # A boot change is classified before dispatch/finalize. This
+                    # prevents an interrupted computation from being adopted or
+                    # relaunched automatically on a new host boot.
+                    tick(conn, docker, current_boot=current)
+                conn.execute(
+                    "INSERT INTO meta(key, value) VALUES ('boot_id', ?) "
+                    "ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    (current,),
+                )
+                if once:
+                    break
+                time.sleep(poll_seconds)
+        finally:
+            conn.close()
 
 
 def build_parser() -> argparse.ArgumentParser:
