@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { ApiClient, type FetchLike } from "./client";
 
 interface Call {
@@ -30,6 +30,25 @@ function mockFetch(): { fn: FetchLike; calls: Call[] } {
 }
 
 describe("ApiClient operation mapping", () => {
+  it("binds the default fetch to globalThis", async () => {
+    let calledWithGlobalThis = false;
+    vi.stubGlobal("fetch", async function (this: unknown) {
+      calledWithGlobalThis = this === globalThis;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({ run_id: "r1", status: "running" }),
+      } as Response;
+    });
+    try {
+      const api = new ApiClient("", "");
+      await api.getRun("r1");
+      expect(calledWithGlobalThis).toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("exchanges the startup token for a same-origin cookie", async () => {
     const { fn, calls } = mockFetch();
     const api = new ApiClient("", "tok", fn);

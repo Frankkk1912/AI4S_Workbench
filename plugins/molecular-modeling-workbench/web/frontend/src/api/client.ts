@@ -86,7 +86,8 @@ export class ApiClient {
   constructor(
     private readonly baseUrl: string,
     private readonly token: string,
-    private readonly fetchFn: FetchLike = fetch,
+    // bind to globalThis: unbound native fetch throws "Illegal invocation" in browsers
+    private readonly fetchFn: FetchLike = globalThis.fetch.bind(globalThis),
   ) {}
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
