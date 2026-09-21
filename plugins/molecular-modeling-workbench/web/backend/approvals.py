@@ -117,13 +117,18 @@ def record_approval(
             "ORDER BY approved_at DESC, approval_id DESC LIMIT 1",
             (run_id, kind),
         ).fetchone()
+        existing_doc = (
+            verify_approval_artifact(conn, existing) if existing is not None else None
+        )
         if (
             previous is None
             and existing is not None
             and existing["payload_hash"] == payload_hash
             and existing["approved_by"] == approved_by
         ):
-            doc = verify_approval_artifact(conn, existing)
+            if existing_doc is None:
+                raise ApprovalError("Existing approval artifact could not be verified.")
+            doc = existing_doc
             reused = True
         else:
             doc = build_approval(
@@ -131,7 +136,7 @@ def record_approval(
                 strategy,
                 kind=kind,
                 approved_by=approved_by,
-                previous=previous,
+                previous=previous or existing_doc,
             )
             path = write_sidecar(workspace, doc)
             conn.execute(

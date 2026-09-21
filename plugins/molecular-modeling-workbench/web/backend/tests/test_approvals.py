@@ -184,6 +184,19 @@ class ApprovalTests(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_changed_approval_records_previous_lineage(self) -> None:
+        run = self._submit()
+        first = self._approve(run["run_id"]).json()
+        changed = dict(STRATEGY, duration_ns=2.0)
+        second = self._approve(run["run_id"], changed).json()
+        doc = json.loads(Path(second["sidecar_path"]).read_text(encoding="utf-8"))
+        self.assertEqual(
+            doc["lineage"]["previous_approval_id"], first["approval_id"]
+        )
+        self.assertEqual(
+            doc["lineage"]["previous_approval_hash"], first["strategy_hash"]
+        )
+
     def test_sidecar_tamper_is_detected(self) -> None:
         run = self._submit()
         data = self._approve(run["run_id"]).json()
