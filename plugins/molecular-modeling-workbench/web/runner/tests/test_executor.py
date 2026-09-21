@@ -177,5 +177,70 @@ class HostedExecutorTests(unittest.TestCase):
         self.assertEqual((current["stage"], current["status"]), ("nvt", "running"))
 
 
+    def test_stop_then_resume_launches_checkpoint_attempt(self) -> None:
+        executor.launch_approved(self.conn, DockerPort(str(self.docker_path)))
+        # User stop request while running; the container then exits.
+        db.set_run_status(
+            self.conn, self.run_id, "stopping", actor="user", detail="drill"
+        )
+        state_doc = json.loads(
+            Path(self.state["state_path"]).read_text(encoding="utf-8")
+        )
+        state_doc["containers"][0]["State"] = "exited"
+        Path(self.state["state_path"]).write_text(
+            json.dumps(state_doc), encoding="utf-8"
+        )
+        cycle = executor.tick(
+            self.conn,
+            DockerPort(str(self.docker_path)),
+            current_boot=db.current_boot_id(),
+        )
+        self.assertIn("stopped", [item["action"] for item in cycle["reconciled"]])
+        self.assertEqual(db.run_status(self.conn, self.run_id), "stopped")
+        (self.work / "em.cpt").write_text("checkpoint\n", encoding="utf-8")
+        resume_plan = self.root / "em_resume_plan.json"
+        resume_plan.write_text(
+            json.dumps(
+                helpers.load_md_run_cli().build_stage_plan(
+                    "em", "em", "wsl2-gpu", 8, True
+                )
+            ),
+            encoding="utf-8",
+        )
+        from web.runner import lifecycle
+
+        approved = lifecycle.approve_resume(
+            self.conn,
+            self.run_id,
+            "em",
+            1,
+            self.work / "em.cpt",
+            self.work / "em.tpr",
+            stage_plan_path=resume_plan,
+            probe=lambda *args, **kwargs: {"valid": True, "checksum": "a" * 64},
+        )
+        self.assertEqual(approved["status"], "queued")
+        self.conn.execute(
+            "UPDATE meta SET value=? WHERE key='boot_id'", (db.current_boot_id(),)
+        )
+        launch = executor.launch_approved(
+            self.conn, DockerPort(str(self.docker_path))
+        )
+        self.assertEqual(launch[0]["action"], "launched")
+        attempt = self.conn.execute(
+            "SELECT * FROM attempts WHERE run_id=? AND stage='em' "
+            "ORDER BY attempt_id DESC LIMIT 1",
+            (self.run_id,),
+        ).fetchone()
+        self.assertEqual(attempt["attempt_id"], 2)
+        self.assertEqual(attempt["kind"], "resume")
+        # The launched vector must carry the checkpoint resume flag.
+        launch_plan = json.loads(
+            (self.work / ".runner" / f"{attempt['container_name']}.launch-plan.json")
+            .read_text(encoding="utf-8")
+        )
+        self.assertIn("-cpi", launch_plan["gromacs_command"])
+
+
 if __name__ == "__main__":
     unittest.main()

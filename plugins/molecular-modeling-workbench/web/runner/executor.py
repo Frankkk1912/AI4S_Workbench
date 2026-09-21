@@ -55,7 +55,7 @@ def launch_approved(
     actor: str = "runner",
     module=None,
 ) -> list[dict]:
-    """Launch approved queued runs that do not yet have an attempt."""
+    """Launch approved queued runs without a live or finished attempt."""
     module = module or mdcli.load_md_run_cli()
     summaries: list[dict] = []
     queued = conn.execute(
@@ -64,10 +64,13 @@ def launch_approved(
     for run in queued:
         run_id = run["run_id"]
         existing = conn.execute(
-            "SELECT 1 FROM attempts WHERE run_id = ? AND stage = ? LIMIT 1",
+            "SELECT * FROM attempts WHERE run_id = ? AND stage = ? "
+            "ORDER BY attempt_id DESC LIMIT 1",
             (run_id, run["stage"]),
         ).fetchone()
-        if existing is not None:
+        if existing is not None and existing["status"] != "intent":
+            # Already launched or finalized for this stage; dispatch belongs to
+            # reconcile/finalize, not a fresh launch.
             continue
         approval = _verified_approval(conn, run_id)
         if approval is None:
@@ -82,13 +85,19 @@ def launch_approved(
             preflight.run_preflight(
                 conn, run["work_dir"], 0, docker, run_id, actor=actor
             )
-            attempt_id = submission.allocate_attempt(
-                conn, run_id, run["stage"], run["work_dir"], actor=actor
-            )
-            attempt = conn.execute(
-                "SELECT * FROM attempts WHERE run_id=? AND stage=? AND attempt_id=?",
-                (run_id, run["stage"], attempt_id),
-            ).fetchone()
+            if existing is not None:
+                # Resume pre-allocates its attempt (kind=resume) at approval
+                # time; reuse it instead of allocating a second identity.
+                attempt_id = existing["attempt_id"]
+                attempt = existing
+            else:
+                attempt_id = submission.allocate_attempt(
+                    conn, run_id, run["stage"], run["work_dir"], actor=actor
+                )
+                attempt = conn.execute(
+                    "SELECT * FROM attempts WHERE run_id=? AND stage=? AND attempt_id=?",
+                    (run_id, run["stage"], attempt_id),
+                ).fetchone()
             paths = _artifact_paths(run["work_dir"], attempt["container_name"])
             launch_plan = module.build_launch_plan(
                 argparse.Namespace(

@@ -184,6 +184,7 @@ class ResumeRequest(BaseModel):
     attempt_id: int
     cpt_path: str
     tpr_path: str
+    stage_plan_path: str | None = None
     expected_checksum: str | None = None
     cpt_step: int | None = None
     log_step: int | None = None
@@ -305,6 +306,7 @@ def resume_run(run_id: str, body: ResumeRequest, request: Request) -> dict:
             expected_checksum=body.expected_checksum,
             cpt_step=body.cpt_step,
             log_step=body.log_step,
+            stage_plan_path=body.stage_plan_path,
         )
     except lifecycle.LifecycleError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc

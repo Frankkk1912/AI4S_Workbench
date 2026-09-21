@@ -371,6 +371,30 @@ def reconcile(
                     "reason": "verified running container reconnected",
                 }
             )
+        elif run["status"] == "stopping":
+            # A user-requested SIGTERM stop that reached a GROMACS safe point
+            # ends as `stopped` (T3.3), never `failed`: the exit is the expected
+            # outcome of the approved stop, and resume stays available.
+            _set_status(
+                conn,
+                run_id,
+                "stopped",
+                "user stop completed; container exited after SIGTERM",
+            )
+            db.audit(
+                conn,
+                actor,
+                "stop_completed",
+                subject=run_id,
+                detail=f"container={container['id']} exited after stop request",
+            )
+            summary.append(
+                {
+                    "run_id": run_id,
+                    "action": "stopped",
+                    "reason": "stop completed; checkpoint available for resume",
+                }
+            )
         else:
             # Exited without finalize: needs finalize (T1.7); never completed here.
             _set_status(

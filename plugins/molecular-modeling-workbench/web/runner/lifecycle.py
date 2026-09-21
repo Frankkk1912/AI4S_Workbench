@@ -21,7 +21,7 @@ import hashlib
 import sqlite3
 from pathlib import Path
 
-from . import db, submission
+from . import db, mdcli, submission
 from .reconcile import DockerPort
 
 DEFAULT_CHECKPOINT_INTERVAL_MINUTES = 15
@@ -291,6 +291,7 @@ def approve_resume(
     expected_checksum: str | None = None,
     cpt_step: int | None = None,
     log_step: int | None = None,
+    stage_plan_path: str | Path | None = None,
     actor: str = "user",
 ) -> dict:
     """User-approved checkpoint recovery: validate then enqueue a new attempt."""
@@ -314,6 +315,17 @@ def approve_resume(
     if run["status"] not in ("interrupted", "stopped"):
         raise LifecycleError(
             f"Run {run_id} is {run['status']}; resume requires interrupted or stopped."
+        )
+    if stage_plan_path is not None:
+        plan_path = Path(stage_plan_path).resolve()
+        plan = mdcli.load_md_run_cli().read_stage_plan(plan_path)
+        if plan["stage"] != stage or not plan.get("resume"):
+            raise LifecycleError(
+                "Resume stage plan must match the stage and enable checkpoint resume."
+            )
+        conn.execute(
+            "UPDATE runs SET stage_plan_path = ? WHERE run_id = ?",
+            (str(plan_path), run_id),
         )
     new_attempt = submission.allocate_attempt(
         conn, run_id, stage, run["work_dir"], kind="resume"
