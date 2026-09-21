@@ -165,10 +165,12 @@ class HostedExecutorTests(unittest.TestCase):
             json.dumps(state_doc), encoding="utf-8"
         )
         executor.queue_prepared_stage(self.conn, self.run_id, "nvt", nvt_plan)
-        launched = executor.launch_approved(
-            self.conn, DockerPort(str(self.docker_path))
+        cycle = executor.tick(
+            self.conn,
+            DockerPort(str(self.docker_path)),
+            current_boot=db.current_boot_id(),
         )
-        self.assertEqual(launched[0]["action"], "launched")
+        self.assertEqual(cycle["launched"][0]["action"], "launched")
         current = self.conn.execute(
             "SELECT stage, status FROM runs WHERE run_id=?", (self.run_id,)
         ).fetchone()

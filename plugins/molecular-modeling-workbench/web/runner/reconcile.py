@@ -76,19 +76,16 @@ class DockerPort:
     def _repo_digest(self, container_id: str | None) -> str | None:
         if not container_id:
             return None
+        # Container inspect exposes the exact image reference used at launch.
+        # Because launch requires an @sha256 reference, Config.Image is the
+        # stable identity; RepoDigests belongs to image inspect, not containers.
         result = self._run(
-            ["inspect", "--format", "{{json .RepoDigests}}", container_id]
+            ["inspect", "--format", "{{.Config.Image}}", container_id]
         )
         if result.returncode != 0:
             return None
-        try:
-            digests = json.loads(result.stdout.strip())
-        except ValueError:
-            return None
-        for item in digests or []:
-            if "@sha256:" in str(item):
-                return str(item)
-        return None
+        image = result.stdout.strip()
+        return image if "@sha256:" in image else None
 
     def container_returncode(self, container_id: str) -> int | None:
         """Return Docker's recorded exit code, or None when undecidable."""
@@ -146,8 +143,9 @@ def reconcile(
     for run in pending:
         run_id = run["run_id"]
         attempts = conn.execute(
-            "SELECT * FROM attempts WHERE run_id = ? ORDER BY attempt_id DESC LIMIT 1",
-            (run_id,),
+            "SELECT * FROM attempts WHERE run_id = ? AND stage = ? "
+            "ORDER BY attempt_id DESC LIMIT 1",
+            (run_id, run["stage"]),
         ).fetchall()
         attempt = attempts[0] if attempts else None
 
