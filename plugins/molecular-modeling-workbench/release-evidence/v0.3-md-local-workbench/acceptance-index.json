@@ -15,15 +15,27 @@
     },
     "aggregate_command": "npm run test:all",
     "aggregate_status": "pass",
-    "runner_test_count": 81,
-    "backend_test_count": 58,
-    "frontend_test_count": 31,
+    "runner_test_count": 87,
+    "backend_test_count": 60,
+    "frontend_test_count": 32,
     "assembly_command": "npm run sync && npm run check",
     "assembly_status": "pass"
   },
   "manual_gpu_v17": {
-    "status": "pending_user_execution",
-    "claim": "not_verified"
+    "status": "partially_executed",
+    "claim": "executed 2026-09-21 on RTX 3080 with AKT1 system (run 0f0af3d8f011); host-reboot step pending user execution",
+    "executed_steps": {
+      "gpu_smoke_and_full_pipeline": "pass: EM/NVT/NPT/Production completed on GPU containers (2 ns production, ~370 ns/day)",
+      "compute_survives_agent_close": "pass: containers hosted by independent systemd-user runner; API/browser not in the execution path",
+      "runner_kill_reconnect": "pass: SIGKILLed runner; container kept running; restarted runner adopted the verified container (container_adopted) without duplicate creation",
+      "safe_stop": "pass: SIGTERM-only stop; GROMACS stopped within 100 steps at a safe point and wrote md.cpt; run classified stopped",
+      "checkpoint_resume": "pass: content-level checkpoint validation (cpt checksum recorded); new resume attempt launched with -cpi and completed",
+      "trajectory_continuity": "pass: gmx check reports 41 frames, 0-2000 ps at uniform 50 ps spacing across the stop/resume boundary",
+      "audited_extension": "pass: frozen checkpoint proof + extension approval sidecar + plan-extend/extend produced md_ext.tpr (convert-tpr -extend 500) with full lineage"
+    },
+    "pending_steps": {
+      "host_reboot": "pending_user_execution: real machine reboot to verify boot-identity classification (interrupted) and approved recovery; automated equivalents covered by mock drills (boot change, host restart)"
+    }
   },
   "release_automation_triggered": false
 }
