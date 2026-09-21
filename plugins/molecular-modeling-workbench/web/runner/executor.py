@@ -64,7 +64,8 @@ def launch_approved(
     for run in queued:
         run_id = run["run_id"]
         existing = conn.execute(
-            "SELECT 1 FROM attempts WHERE run_id = ? LIMIT 1", (run_id,)
+            "SELECT 1 FROM attempts WHERE run_id = ? AND stage = ? LIMIT 1",
+            (run_id, run["stage"]),
         ).fetchone()
         if existing is not None:
             continue
@@ -183,6 +184,51 @@ def launch_approved(
                 {"run_id": run_id, "action": "attention", "reason": str(exc)}
             )
     return summaries
+
+
+def queue_prepared_stage(
+    conn: sqlite3.Connection,
+    run_id: str,
+    new_stage: str,
+    stage_plan_path: str | Path,
+    *,
+    actor: str = "runner",
+    module=None,
+) -> None:
+    """Re-queue a completed run after the next stage TPR is prepared."""
+    module = module or mdcli.load_md_run_cli()
+    run = conn.execute("SELECT * FROM runs WHERE run_id=?", (run_id,)).fetchone()
+    if run is None:
+        raise ExecutorError(f"Unknown run: {run_id}")
+    if run["status"] != "completed":
+        raise ExecutorError(
+            f"Run {run_id} is {run['status']}; next stage requires completed."
+        )
+    order = list(module.STAGE_ORDER)
+    try:
+        expected = order[order.index(run["stage"]) + 1]
+    except (ValueError, IndexError) as exc:
+        raise ExecutorError(f"Run {run_id} has no next stage.") from exc
+    if new_stage != expected:
+        raise ExecutorError(f"Expected next stage {expected}, got {new_stage}.")
+    plan_path = Path(stage_plan_path).resolve()
+    plan = module.read_stage_plan(plan_path)
+    if plan["stage"] != new_stage:
+        raise ExecutorError("Stage plan does not match the requested next stage.")
+    manifest = module.load(Path(run["manifest_path"]))
+    module.validate_stage_prerequisites(manifest, plan)
+    conn.execute(
+        "UPDATE runs SET stage=?, status='queued', stage_plan_path=?, updated_at=? "
+        "WHERE run_id=?",
+        (new_stage, str(plan_path), db.now(), run_id),
+    )
+    db.audit(
+        conn,
+        actor,
+        "stage_prepared",
+        subject=run_id,
+        detail=f"stage={new_stage} plan={plan_path.name}",
+    )
 
 
 def finalize_exited(

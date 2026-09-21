@@ -16,6 +16,7 @@ recomputed deterministically and the atomic receipt is identical.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import sqlite3
@@ -42,10 +43,8 @@ def atomic_write_json(path: Path, doc: dict) -> None:
             handle.write("\n")
         os.replace(tmp, path)
     except BaseException:
-        try:
+        with contextlib.suppress(OSError):
             os.unlink(tmp)
-        except OSError:
-            pass
         raise
 
 
@@ -100,6 +99,16 @@ def finalize_container(
     }
     receipt["receipt_sha256"] = module.plan_hash(receipt)
     atomic_write_json(Path(receipt_path), receipt)
+    manifest.setdefault("stages", {})[stage] = {
+        "at": module.now(),
+        "status": status,
+        "plan": module.file_reference(Path(stage_plan_path)),
+        "command": plan["command"],
+        "returncode": returncode,
+        "log": str(work / f"{stage}.log"),
+        "artifacts": artifacts,
+    }
+    atomic_write_json(Path(manifest_path), manifest)
 
     # "incomplete" (exit 0 but artifacts missing) is not a DB lifecycle status;
     # it maps to `failed` while the receipt preserves the precise verdict.

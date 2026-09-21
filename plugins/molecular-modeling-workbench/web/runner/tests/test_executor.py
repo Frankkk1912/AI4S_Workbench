@@ -147,6 +147,32 @@ class HostedExecutorTests(unittest.TestCase):
         self.assertEqual(attempt["status"], "completed")
         self.assertEqual(attempt["returncode"], 0)
         self.assertTrue(Path(attempt["receipt_path"]).is_file())
+        manifest = json.loads(self.manifest.read_text(encoding="utf-8"))
+        self.assertEqual(manifest["stages"]["em"]["status"], "completed")
+        self.assertEqual(
+            manifest["stages"]["em"]["artifacts"]["gro"]["path"],
+            str((self.work / "em.gro").resolve()),
+        )
+        module = helpers.load_md_run_cli()
+        nvt_plan = self.root / "nvt_stage_plan.json"
+        nvt_plan.write_text(
+            json.dumps(module.build_stage_plan("nvt", "nvt", "wsl2-gpu", 8, False)),
+            encoding="utf-8",
+        )
+        (self.work / "nvt.tpr").write_text("fake tpr\n", encoding="utf-8")
+        state_doc["run_result"] = {"returncode": 0, "container_id": "e" * 64}
+        Path(self.state["state_path"]).write_text(
+            json.dumps(state_doc), encoding="utf-8"
+        )
+        executor.queue_prepared_stage(self.conn, self.run_id, "nvt", nvt_plan)
+        launched = executor.launch_approved(
+            self.conn, DockerPort(str(self.docker_path))
+        )
+        self.assertEqual(launched[0]["action"], "launched")
+        current = self.conn.execute(
+            "SELECT stage, status FROM runs WHERE run_id=?", (self.run_id,)
+        ).fetchone()
+        self.assertEqual((current["stage"], current["status"]), ("nvt", "running"))
 
 
 if __name__ == "__main__":
