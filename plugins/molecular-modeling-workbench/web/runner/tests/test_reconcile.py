@@ -1,3 +1,4 @@
+# pyright: reportMissingImports=false
 """T1.2/T1.3: detached identity reconciliation and boot-identity handling.
 
 Uses the shared mock docker executable; never requires a real Docker daemon or
@@ -9,6 +10,7 @@ verified exited container is never reported as completed here.
 from __future__ import annotations
 
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -18,6 +20,24 @@ from web.runner.reconcile import DockerPort, reconcile
 from web.runner.tests import helpers
 
 DIGEST = "nvcr.io/nvidia/gromacs@sha256:" + "a" * 64
+
+
+class RealFormatDocker(DockerPort):
+    def _run(self, args: list[str]) -> subprocess.CompletedProcess[str]:
+        if args[0] == "ps":
+            row = {
+                "ID": "c" * 12,
+                "Names": "container-name",
+                "Labels": "ai4s.workbench.run_id=run-1",
+                "State": "running",
+            }
+            return subprocess.CompletedProcess(args, 0, json.dumps(row) + "\n", "")
+        if "{{.Config.Image}}" in args:
+            return subprocess.CompletedProcess(args, 0, DIGEST + "\n", "")
+        if "{{json .Config.Labels}}" in args:
+            labels = {"ai4s.workbench.run_id": "run-1"}
+            return subprocess.CompletedProcess(args, 0, json.dumps(labels) + "\n", "")
+        return subprocess.CompletedProcess(args, 1, "", "unsupported")
 
 
 def container_record(cid: str, name: str, labels: dict, state: str = "running") -> dict:
@@ -87,6 +107,13 @@ class ReconcileTests(unittest.TestCase):
             "ai4s.workbench.command_hash": module.command_hash(command),
             "ai4s.workbench.owner": "1000:1000",
         }
+
+    def test_real_docker_label_string_is_resolved_via_inspect(self) -> None:
+        records = RealFormatDocker().find_by_label(
+            "ai4s.workbench.run_id", "run-1"
+        )
+        self.assertEqual(records[0]["labels"], {"ai4s.workbench.run_id": "run-1"})
+        self.assertEqual(records[0]["image_digest"], DIGEST)
 
     def test_boot_change_interrupts_active_run(self) -> None:
         run_id = self._submit_and_intent("req-1", "/work")

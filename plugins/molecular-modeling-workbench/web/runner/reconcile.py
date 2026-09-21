@@ -62,12 +62,19 @@ class DockerPort:
                 row = json.loads(line)
             except ValueError as exc:
                 raise RuntimeError("docker ps returned malformed JSON") from exc
+            container_id = row.get("ID")
+            raw_labels = row.get("Labels")
+            labels = (
+                raw_labels
+                if isinstance(raw_labels, dict)
+                else self._container_labels(container_id)
+            )
             records.append(
                 {
-                    "id": row.get("ID"),
+                    "id": container_id,
                     "name": row.get("Names"),
-                    "image_digest": self._repo_digest(row.get("ID")),
-                    "labels": row.get("Labels") or {},
+                    "image_digest": self._repo_digest(container_id),
+                    "labels": labels,
                     "state": row.get("State"),
                 }
             )
@@ -86,6 +93,20 @@ class DockerPort:
             return None
         image = result.stdout.strip()
         return image if "@sha256:" in image else None
+
+    def _container_labels(self, container_id: str | None) -> dict[str, str]:
+        if not container_id:
+            return {}
+        result = self._run(
+            ["inspect", "--format", "{{json .Config.Labels}}", container_id]
+        )
+        if result.returncode != 0:
+            return {}
+        try:
+            labels = json.loads(result.stdout.strip())
+        except ValueError:
+            return {}
+        return labels if isinstance(labels, dict) else {}
 
     def container_returncode(self, container_id: str) -> int | None:
         """Return Docker's recorded exit code, or None when undecidable."""
@@ -113,8 +134,11 @@ def _identity_matches(attempt: sqlite3.Row, container: dict) -> tuple[bool, str 
         )
     if container.get("image_digest") != attempt["image_digest"]:
         return False, "image digest does not match the attempt record"
+    container_labels = container.get("labels")
+    if not isinstance(container_labels, dict):
+        return False, "container ownership labels are malformed"
     for key in ("ai4s.workbench.work_dir_hash", "ai4s.workbench.command_hash"):
-        if container.get("labels", {}).get(key) != labels.get(key):
+        if container_labels.get(key) != labels.get(key):
             return False, f"ownership label {key} does not match the attempt record"
     for key, value in labels.items():
         if container.get("labels", {}).get(key) != value:
