@@ -252,11 +252,19 @@ def reconcile(
 
         containers = docker.find_by_label(RUN_ID_LABEL, run_id)
         matching = [c for c in containers if c.get("name") == attempt["container_name"]]
+        known_names = {
+            row["container_name"]
+            for row in conn.execute(
+                "SELECT container_name FROM attempts WHERE run_id = ?", (run_id,)
+            )
+        }
+        unexpected = [c for c in containers if c.get("name") not in known_names]
 
         if attempt["container_at"] is None:
-            if not matching and not containers:
+            if not matching and not unexpected:
                 # Rule 2a: crash between intent and docker run; retry will
-                # allocate a NEW attempt, never assume this one ran.
+                # allocate a NEW attempt, never assume this one ran. Containers
+                # from prior attempts are known evidence, not anomalies.
                 summary.append(
                     {
                         "run_id": run_id,
@@ -265,7 +273,7 @@ def reconcile(
                     }
                 )
                 continue
-            if not matching and containers:
+            if not matching and unexpected:
                 _set_status(
                     conn,
                     run_id,

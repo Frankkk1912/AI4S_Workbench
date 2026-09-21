@@ -115,6 +115,38 @@ class ReconcileTests(unittest.TestCase):
         self.assertEqual(records[0]["labels"], {"ai4s.workbench.run_id": "run-1"})
         self.assertEqual(records[0]["image_digest"], DIGEST)
 
+    def test_intent_attempt_ignores_prior_attempt_containers(self) -> None:
+        """Resume dispatch must not treat prior attempts' containers as anomalies."""
+        run_id = self._submit_and_intent("req-resume", "/work")
+        self.conn.execute(
+            "UPDATE runs SET status='queued' WHERE run_id=?", (run_id,)
+        )
+        # Record the prior attempt as launched; its exited container is known
+        # evidence recorded in the attempts table.
+        labels = self._labels(run_id, "/work", ["gmx", "mdrun"])
+        self._record_launched_attempt(run_id, 1, labels)
+        # The resume approval pre-allocates the next intent-only attempt.
+        submission.allocate_attempt(self.conn, run_id, "em", "/work")
+        self.mock.inject_containers(
+            self.state,
+            [
+                container_record(
+                    "d" * 64,
+                    f"ai4s-md-{run_id}-em-1",
+                    labels,
+                    "exited",
+                )
+            ],
+        )
+        summary = self._reconcile()
+        self.assertTrue(
+            any(
+                s["action"] == "unchanged" and "intent-only" in s["reason"]
+                for s in summary
+            )
+        )
+        self.assertEqual(db.run_status(self.conn, run_id), "queued")
+
     def test_boot_change_interrupts_active_run(self) -> None:
         run_id = self._submit_and_intent("req-1", "/work")
         self.conn.execute("UPDATE runs SET status='running' WHERE run_id=?", (run_id,))
