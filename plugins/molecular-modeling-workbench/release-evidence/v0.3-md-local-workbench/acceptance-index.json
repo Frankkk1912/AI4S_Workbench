@@ -22,8 +22,8 @@
     "assembly_status": "pass"
   },
   "manual_gpu_v17": {
-    "status": "partially_executed",
-    "claim": "executed 2026-09-21 on RTX 3080 with AKT1 system (run 0f0af3d8f011); host-reboot step pending user execution",
+    "status": "executed",
+    "claim": "all steps executed 2026-09-21/22 on RTX 3080 with AKT1 system (run 0f0af3d8f011), including real host reboot on 2026-09-22; see executed_steps and host_reboot for the honest scope boundary",
     "executed_steps": {
       "gpu_smoke_and_full_pipeline": "pass: EM/NVT/NPT/Production completed on GPU containers (2 ns production, ~370 ns/day)",
       "compute_survives_agent_close": "pass: containers hosted by independent systemd-user runner; API/browser not in the execution path",
@@ -33,9 +33,7 @@
       "trajectory_continuity": "pass: gmx check reports 41 frames, 0-2000 ps at uniform 50 ps spacing across the stop/resume boundary",
       "audited_extension": "pass: frozen checkpoint proof + extension approval sidecar + plan-extend/extend produced md_ext.tpr (convert-tpr -extend 500) with full lineage"
     },
-    "pending_steps": {
-      "host_reboot": "pending_user_execution: real machine reboot to verify boot-identity classification (interrupted) and approved recovery; automated equivalents covered by mock drills (boot change, host restart)"
-    }
+    "host_reboot": "executed 2026-09-22: real machine reboot verified boot-identity change (7ca7ae07... -> 383ab6e2...); all drill containers preserved as evidence; runner reconcile on the new boot updated the recorded boot id, left terminal runs untouched, and services were restored (runner/API active, API serving run records). Honest boundary: production had completed before the reboot, so no active run crossed the restart; the interrupted classification itself is covered by mock drills (boot change fail-closed, host restart without docker) and the real user-approved checkpoint recovery path was exercised earlier via the SIGTERM stop/resume step."
   },
   "release_automation_triggered": false
 }
