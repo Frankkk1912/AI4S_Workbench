@@ -1,67 +1,67 @@
 {
   "schema_version": "1.0",
-  "generated_at": "2026-08-07T08:09:27.528Z",
+  "generated_at": "2026-09-19T03:12:57.953Z",
   "source_root": "source-skills",
   "bundles": [
     {
       "source": "molecular-modeling-environment",
       "destination": "skills/molecular-modeling-environment",
-      "sha256": "94679603df8c8bf278cb36dfc0d959ae089acaa67c477d8deba314c8e80bd10d"
+      "sha256": "180afa80f47e0238aa2f258f8f0fb7298c0615ab76917f9f851a2d610ada215c"
     },
     {
       "source": "molecular-geometry-common",
       "destination": "skills/molecular-geometry-common",
-      "sha256": "cd76d4d4e611c3755220cfc7d402cc0735bcc8ef9cae2dead26a51439bce9b3c"
+      "sha256": "25bc1a7ac46f35bc8f7342bf5de083c9d356c2f02a6cf626179e905d6f4dc79c"
     },
     {
       "source": "docking-project-manager",
       "destination": "skills/docking-project-manager",
-      "sha256": "9ec4413af641f96bb589cdb9a152d5a7a25ec091bf831eef6396a938704ca62a"
+      "sha256": "f0e9038aac3b5dae57db82fa2941d1412f7314754f64b95a3d9054f91acbbf75"
     },
     {
       "source": "docking-simulation-run",
       "destination": "skills/docking-simulation-run",
-      "sha256": "1811e12ee735d9b89605c689b91dbee8855f6f942f006702fef389a8bce117c9"
+      "sha256": "8f688b764134cbd1051b95e3a555b45bfcef60affca21d2cde97a23f6425f7ee"
     },
     {
       "source": "docking-complex-analysis",
       "destination": "skills/docking-complex-analysis",
-      "sha256": "56368f84d9666af700b580340ee1bae2f9ec97ffb588860422b1f939f3f79e01"
+      "sha256": "d4d0f4c7f6d08aeeb4b66736ef3fbd3dcd989986281e9206695b2f2a017f2779"
     },
     {
       "source": "docking-to-md-handoff",
       "destination": "skills/docking-to-md-handoff",
-      "sha256": "9d862d6723ebf41d7daf782bfe0bcc7595c3ee914a967a416b5eb130b34db23c"
+      "sha256": "bd4a0cffb7385eb0f8488f308529de8ae881e05bf93af9677f909da25d4c7571"
     },
     {
       "source": "docking-visualization",
       "destination": "skills/docking-visualization",
-      "sha256": "226e8833ade6dbbbabeb0a3839fe7289ecba545b27e7c38375f1426ab15b5814"
+      "sha256": "46f52bc21c4a4d010855d2522a2496f41513d00210d4f607661ea921b6bc8882"
     },
     {
       "source": "ligand-parameterization",
       "destination": "skills/ligand-parameterization",
-      "sha256": "424540f557dc5549a43894f8c5f4c009ad5148af0715c42771546bd7ac4c00d2"
+      "sha256": "b8fbf0a1da8a74df2708b54f19424e5d25882cd45e535f1dde437ad427c38daf"
     },
     {
       "source": "md-project-manager",
       "destination": "skills/md-project-manager",
-      "sha256": "18230be824c20c0d7fdf4df982bcbafff8a3aef30550fd72512460d56d2c3f89"
+      "sha256": "a4fd2033c10cea94a72ca32a5d79c03b142557c00620151497a33775670e44fa"
     },
     {
       "source": "md-simulation-run",
       "destination": "skills/md-simulation-run",
-      "sha256": "4cea30154ef9b1b12c3703e457e4c5184630144fbe12b1777ebd4ce2d6d2a403"
+      "sha256": "94e6da745d4490d86f16ba01d6fa8ffd4e3ed9eb42efae8345e1ea66bf0530fc"
     },
     {
       "source": "md-trajectory-analysis",
       "destination": "skills/md-trajectory-analysis",
-      "sha256": "769b09420cd0646210272c677fd8c5db2a9290b8cab1d419f672253b6ca70173"
+      "sha256": "6ea8789fd9e8ffe6ffa406929d271dc247d5e85a79151dbaab0cdd46b4834982"
     },
     {
       "source": "md-simulation-plotting",
       "destination": "skills/md-simulation-plotting",
-      "sha256": "cf8bd9b05d066d664042aac3e7f9b5a88b471dbc11ed44a32cb8e02113c175d4"
+      "sha256": "fdcebe7bdd57f79ad35e42a17fb28f71e52a6bb897a8a58fb35cb0912de8ef79"
     }
   ]
 }

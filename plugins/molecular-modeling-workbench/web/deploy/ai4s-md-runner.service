@@ -1,0 +1,17 @@
+[Unit]
+Description=AI4S MD workbench runner (user service)
+After=default.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/projects/AI4S_Workbench/plugins/molecular-modeling-workbench
+ExecStart=/usr/bin/env uv run --project web --locked python -m web.runner.cli serve --data-dir %h/AI4S_MD_Workspace/.ai4s-md-workbench
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+# This is a user unit. It does not imply persistence across logout; user linger
+# must be reviewed and enabled separately by the workstation owner.
+[Install]
+WantedBy=default.target

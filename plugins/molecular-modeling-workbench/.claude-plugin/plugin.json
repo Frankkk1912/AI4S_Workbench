@@ -1,6 +1,6 @@
 {
   "name": "molecular-modeling-workbench",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Auditable WSL-native onboarding, molecular docking, visualization, and molecular dynamics workflows.",
   "author": {
     "name": "Frankkk1912",

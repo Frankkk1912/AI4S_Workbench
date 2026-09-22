@@ -1,0 +1,39 @@
+{
+  "schema_version": "1.0",
+  "artifact_type": "molecular_modeling_release_acceptance_index",
+  "plugin_version": "0.3.0",
+  "automated_evidence": {
+    "ci": {
+      "url": "https://github.com/Frankkk1912/AI4S_Workbench/actions/runs/35418680922",
+      "web_tests": "success",
+      "cpu_contract": "success"
+    },
+    "mock_drills": {
+      "path": "web/runner/tests/test_drills.py",
+      "test_count": 8,
+      "status": "pass"
+    },
+    "aggregate_command": "npm run test:all",
+    "aggregate_status": "pass",
+    "runner_test_count": 87,
+    "backend_test_count": 60,
+    "frontend_test_count": 32,
+    "assembly_command": "npm run sync && npm run check",
+    "assembly_status": "pass"
+  },
+  "manual_gpu_v17": {
+    "status": "executed",
+    "claim": "all steps executed 2026-09-21/22 on RTX 3080 with AKT1 system (run 0f0af3d8f011), including real host reboot on 2026-09-22; see executed_steps and host_reboot for the honest scope boundary",
+    "executed_steps": {
+      "gpu_smoke_and_full_pipeline": "pass: EM/NVT/NPT/Production completed on GPU containers (2 ns production, ~370 ns/day)",
+      "compute_survives_agent_close": "pass: containers hosted by independent systemd-user runner; API/browser not in the execution path",
+      "runner_kill_reconnect": "pass: SIGKILLed runner; container kept running; restarted runner adopted the verified container (container_adopted) without duplicate creation",
+      "safe_stop": "pass: SIGTERM-only stop; GROMACS stopped within 100 steps at a safe point and wrote md.cpt; run classified stopped",
+      "checkpoint_resume": "pass: content-level checkpoint validation (cpt checksum recorded); new resume attempt launched with -cpi and completed",
+      "trajectory_continuity": "pass: gmx check reports 41 frames, 0-2000 ps at uniform 50 ps spacing across the stop/resume boundary",
+      "audited_extension": "pass: frozen checkpoint proof + extension approval sidecar + plan-extend/extend produced md_ext.tpr (convert-tpr -extend 500) with full lineage"
+    },
+    "host_reboot": "executed 2026-09-22: real machine reboot verified boot-identity change (7ca7ae07... -> 383ab6e2...); all drill containers preserved as evidence; runner reconcile on the new boot updated the recorded boot id, left terminal runs untouched, and services were restored (runner/API active, API serving run records). Honest boundary: production had completed before the reboot, so no active run crossed the restart; the interrupted classification itself is covered by mock drills (boot change fail-closed, host restart without docker) and the real user-approved checkpoint recovery path was exercised earlier via the SIGTERM stop/resume step."
+  },
+  "release_automation_triggered": false
+}

@@ -50,7 +50,10 @@ def plot_tier2_fel(
         X2, Y2, F2 = calculate_fel(pc1_2, pc2_2, temp)
 
     n_cols = 1 if is_single else 2
-    fig, axes = plt.subplots(1, n_cols, figsize=(3.5 * n_cols, 3.5), squeeze=False)
+    fig_width, fig_height = md_style.StyleConfig.FIG_SIZE_FEL_PANEL
+    fig, axes = plt.subplots(
+        1, n_cols, figsize=(fig_width * n_cols, fig_height), squeeze=False
+    )
     plt.subplots_adjust(wspace=0.3)
 
     # Fixed global scale for objective scientific comparison (prevents false illusion of high energy)
